@@ -20,66 +20,136 @@ class GameScreen extends StatefulWidget {
   _GameScreenState createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> {
-  double birdY = 0; // Center of the screen
-  double velocity = 0; // Bird's current velocity
-  bool gameHasStarted = false; // Track whether the game has started
+class GlueStickPair {
+  double verticalOffset; // Made mutable to allow updates
+  final double gap = 160; // Fixed vertical gap
+  final double width = 70; // Fixed width
+  double xPosition; // Horizontal position
 
-  // Constants for physics
-  final double gravity = 0.015; // Gravity value
-  final double flapStrength = -0.2; // Flap strength
-  final double maxFallSpeed = 0.5; // Maximum downward velocity
+  GlueStickPair({required this.verticalOffset, required this.xPosition});
 
-  @override
-  void initState() {
-    super.initState();
-    startGame();
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Top glue stick
+        Positioned(
+          top: 0,
+          left: xPosition,
+          child: Container(
+            width: width,
+            height: MediaQuery.of(context).size.height / 2 + verticalOffset - gap / 2,
+            color: Colors.green,
+          ),
+        ),
+        // Bottom glue stick
+        Positioned(
+          bottom: 0,
+          left: xPosition,
+          child: Container(
+            width: width,
+            height: MediaQuery.of(context).size.height / 2 - verticalOffset - gap / 2,
+            color: Colors.green,
+          ),
+        ),
+      ],
+    );
   }
+}
+
+class _GameScreenState extends State<GameScreen> {
+  double birdY = 0; // Start in center
+  double velocity = 0;
+  bool gameHasStarted = false;
+  bool isGameStarted = false; // Add a variable to track if the game has started.
+
+  // Adjusted physics constants for Align(y) system
+  final double gravity = 0.02; // Gravity in Align(y) units
+  final double flapStrength = -0.21; // Reduced flap strength by 30%
+  final double maxFallSpeed = 0.04; // Limit max downward velocity in Align(y) units
+
+  Timer? gameLoopTimer;
+
+  final List<GlueStickPair> glueSticks = [];
+  final double glueStickSpacing = 280; // Horizontal spacing between pairs
+  final double glueStickSpeed = 2; // Speed of movement
+  Timer? glueStickTimer;
 
   void startGame() {
-    gameHasStarted = true; // Set the game state to started
-    Timer.periodic(Duration(milliseconds: 16), (timer) {
+    gameHasStarted = true;
+
+    // Initialize glue sticks
+    for (int i = 0; i < 3; i++) {
+      glueSticks.add(GlueStickPair(
+        verticalOffset: (i % 2 == 0 ? -1 : 1) * 50.0, // Example offset
+        xPosition: MediaQuery.of(context).size.width + i * glueStickSpacing,
+      ));
+    }
+
+    // Start game loop
+    gameLoopTimer = Timer.periodic(Duration(milliseconds: 16), (timer) {
       setState(() {
-        if (!gameHasStarted) {
-          return; // Do nothing if the game hasn't started
-        }
-
-        // Apply gravity to velocity
-        velocity += gravity;
-
-        // Cap the downward velocity to maxFallSpeed
-        if (velocity > maxFallSpeed) {
-          velocity = maxFallSpeed;
-        }
-
-        // Update the bird's position
-        birdY += velocity;
-
-        // Prevent the bird from going off-screen
-        if (birdY > 1) {
-          birdY = 1; // Bottom of the screen
-          velocity = 0; // Stop falling
-        } else if (birdY < -1) {
-          birdY = -1; // Top of the screen
-          velocity = 0; // Stop rising
-        }
+        updateBirdPosition();
+        updateGlueSticks();
       });
     });
   }
 
-  void jump() {
-    if (!gameHasStarted) {
-      startGame(); // Start the game on the first tap
+  void onTap() {
+    if (!isGameStarted) {
+      isGameStarted = true; // Start the game on the first tap.
+      startGame();
     }
+    jump();
+  }
+
+  void jump() {
     setState(() {
-      velocity = flapStrength; // Apply upward velocity
+      velocity = flapStrength; // Apply adjusted flap strength
     });
+  }
+
+  void updateBirdPosition() {
+    if (isGameStarted) {
+      // Apply gravity and limit downward velocity
+      velocity += gravity;
+      if (velocity > maxFallSpeed) velocity = maxFallSpeed;
+
+      // Update bird position
+      birdY += velocity;
+
+      // Clamp position to stay within screen bounds
+      if (birdY > 1) {
+        birdY = 1;
+        velocity = 0;
+      } else if (birdY < -1) {
+        birdY = -1;
+        velocity = 0;
+      }
+    }
+  }
+
+  void updateGlueSticks() {
+    for (var glueStick in glueSticks) {
+      glueStick.xPosition -= glueStickSpeed;
+
+      // Recycle glue stick if it exits the screen
+      if (glueStick.xPosition < -glueStick.width) {
+        glueStick.xPosition += glueStickSpacing * glueSticks.length;
+        glueStick.verticalOffset = (glueStick.verticalOffset.isNegative ? 1 : -1) * 50.0; // Example offset
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    gameLoopTimer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: jump, // Trigger jump when the screen is tapped
+      onTap: onTap,
       child: Scaffold(
         body: Stack(
           children: [
@@ -92,16 +162,18 @@ class _GameScreenState extends State<GameScreen> {
                 ),
               ),
             ),
+            // Glue sticks
+            ...glueSticks.map((glueStick) => glueStick.build(context)).toList(),
             // Bird
             Align(
-              alignment: Alignment(0, birdY), // Use birdY for vertical position
+              alignment: Alignment(0, birdY),
               child: Image.asset(
                 'assets/images/bird.png',
-                width: 70, // Adjust width
-                height: 70, // Adjust height
+                width: 70,
+                height: 70,
               ),
             ),
-            // "Tap to Start" Message
+            // "Tap to Start" overlay
             if (!gameHasStarted)
               Center(
                 child: Text(
