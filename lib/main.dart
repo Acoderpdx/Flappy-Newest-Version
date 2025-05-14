@@ -35,20 +35,22 @@ class GlueStickPair {
         Positioned(
           top: 0,
           left: xPosition,
-          child: Container(
+          child: Image.asset(
+            'assets/images/glue_stick_top.png',
             width: width,
             height: MediaQuery.of(context).size.height / 2 + verticalOffset - gap / 2,
-            color: Colors.green,
+            fit: BoxFit.fill,
           ),
         ),
         // Bottom glue stick
         Positioned(
           bottom: 0,
           left: xPosition,
-          child: Container(
+          child: Image.asset(
+            'assets/images/glue_stick_bottom.png',
             width: width,
             height: MediaQuery.of(context).size.height / 2 - verticalOffset - gap / 2,
-            color: Colors.green,
+            fit: BoxFit.fill,
           ),
         ),
       ],
@@ -60,11 +62,9 @@ class _GameScreenState extends State<GameScreen> {
   double birdY = 0; // Start in center
   double velocity = 0;
   bool gameHasStarted = false;
-  bool isGameStarted = false; // Add a variable to track if the game has started.
 
   // Adjusted physics constants for Align(y) system
-  final double gravity = 0.02; // Gravity in Align(y) units
-  final double flapStrength = -0.21; // Reduced flap strength by 30%
+  final double gravity = 0.007 * 0.6; // Reduce gravity by 40% (original was 0.007)
   final double maxFallSpeed = 0.04; // Limit max downward velocity in Align(y) units
 
   Timer? gameLoopTimer;
@@ -72,7 +72,9 @@ class _GameScreenState extends State<GameScreen> {
   final List<GlueStickPair> glueSticks = [];
   final double glueStickSpacing = 280; // Horizontal spacing between pairs
   final double glueStickSpeed = 2; // Speed of movement
-  Timer? glueStickTimer;
+
+  final double pixelToAlignRatio = 0.002; // Adjust this based on screen height
+  final double flapHeight = 30; // Flap height in pixels
 
   void startGame() {
     gameHasStarted = true;
@@ -95,8 +97,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void onTap() {
-    if (!isGameStarted) {
-      isGameStarted = true; // Start the game on the first tap.
+    if (!gameHasStarted) {
       startGame();
     }
     jump();
@@ -104,27 +105,25 @@ class _GameScreenState extends State<GameScreen> {
 
   void jump() {
     setState(() {
-      velocity = flapStrength; // Apply adjusted flap strength
+      velocity = -flapHeight * pixelToAlignRatio; // Convert pixels to Align(y) units
     });
   }
 
   void updateBirdPosition() {
-    if (isGameStarted) {
-      // Apply gravity and limit downward velocity
-      velocity += gravity;
-      if (velocity > maxFallSpeed) velocity = maxFallSpeed;
+    // Apply gravity and limit downward velocity
+    velocity += gravity;
+    if (velocity > maxFallSpeed) velocity = maxFallSpeed;
 
-      // Update bird position
-      birdY += velocity;
+    // Update bird position
+    birdY += velocity;
 
-      // Clamp position to stay within screen bounds
-      if (birdY > 1) {
-        birdY = 1;
-        velocity = 0;
-      } else if (birdY < -1) {
-        birdY = -1;
-        velocity = 0;
-      }
+    // Clamp position to stay within screen bounds
+    if (birdY > 1) {
+      birdY = 1;
+      velocity = 0;
+    } else if (birdY < -1) {
+      birdY = -1;
+      velocity = 0;
     }
   }
 

@@ -10,9 +10,12 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
+  vm_service: ^15.0.0
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/background.png
     - assets/images/bird.png
+    - assets/images/glue_stick_top.png
+    - assets/images/glue_stick_bottom.png
