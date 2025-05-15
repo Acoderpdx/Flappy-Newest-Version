@@ -66,7 +66,7 @@ class _GameScreenState extends State<GameScreen> {
   bool gameOver = false; // <-- Add game over state
 
   // Adjusted physics constants for Align(y) system
-  final double gravity = 0.007 * 0.75; // Bird falls 25% slower
+  final double gravity = 0.007 * 0.5; // Bird falls 50% slower
   final double maxFallSpeed = 0.04; // Limit max downward velocity in Align(y) units
 
   Timer? gameLoopTimer;
@@ -240,7 +240,12 @@ class _GameScreenState extends State<GameScreen> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: gameOver
+          ? () {
+              resetGame();
+              startGame();
+            }
+          : onTap,
       child: Scaffold(
         body: Stack(
           children: [
@@ -300,36 +305,38 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                 ),
               ),
-            // "Game Over" overlay
+            // End screen (full screen, replaces overlay)
             if (gameOver)
-              Container(
-                color: Colors.black54,
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    resetGame();
+                    startGame();
+                  },
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Text(
-                        'GAME OVER',
-                        style: TextStyle(
-                          fontSize: 36,
-                          color: Colors.redAccent,
-                          fontWeight: FontWeight.bold,
-                          shadows: [
-                            Shadow(
-                              blurRadius: 8,
-                              color: Colors.black,
-                              offset: Offset(2, 2),
+                      Image.asset(
+                        'assets/images/end_screen.png',
+                        fit: BoxFit.cover,
+                      ),
+                      Container(
+                        color: Colors.black54, // Optional: darken for contrast
+                      ),
+                      Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Score: $score',
+                              style: TextStyle(
+                                fontSize: 32,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'TAP TO RESTART',
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
