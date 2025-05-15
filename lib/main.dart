@@ -22,7 +22,7 @@ class GameScreen extends StatefulWidget {
 
 class GlueStickPair {
   double verticalOffset; // Made mutable to allow updates
-  final double gap = 160; // Fixed vertical gap
+  final double gap = 200; // Increased vertical gap (was 160)
   final double width = 70; // Fixed width
   double xPosition; // Horizontal position
   bool hasScored = false; // <-- Add this flag
@@ -67,8 +67,8 @@ class _GameScreenState extends State<GameScreen> {
   bool showTitleScreen = true; // <-- Add this line
 
   // Adjusted physics constants for Align(y) system
-  final double gravity = 0.007 * 0.5; // Bird falls 50% slower
-  final double maxFallSpeed = 0.04; // Limit max downward velocity in Align(y) units
+  final double gravity = 0.007 * 0.5; // Bird falls 50% slower (was 0.7 for 30%)
+  final double maxFallSpeed = 0.035; // Slightly lower max fall speed
 
   Timer? gameLoopTimer;
 
@@ -77,7 +77,7 @@ class _GameScreenState extends State<GameScreen> {
   final double glueStickSpeed = 2; // Speed of movement
 
   final double pixelToAlignRatio = 0.002; // Adjust this based on screen height
-  final double flapHeight = 24; // Flap height in pixels
+  final double flapHeight = 22; // Flap height in pixels (was 24)
 
   int score = 0; // <-- Add score variable
 
