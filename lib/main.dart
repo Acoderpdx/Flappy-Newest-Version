@@ -321,22 +321,28 @@ class _GameScreenState extends State<GameScreen> {
                         'assets/images/end_screen.png',
                         fit: BoxFit.cover,
                       ),
-                      Container(
-                        color: Colors.black54, // Optional: darken for contrast
-                      ),
-                      Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Score: $score',
-                              style: TextStyle(
-                                fontSize: 32,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                      // Score number only, centered in top 60 pixels
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: 60,
+                        child: Center(
+                          child: Text(
+                            '$score',
+                            style: TextStyle(
+                              fontSize: 44,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              shadows: [
+                                Shadow(
+                                  blurRadius: 8,
+                                  color: Colors.black54,
+                                  offset: Offset(2, 2),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ],
