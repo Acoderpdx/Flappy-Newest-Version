@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'shop_screen.dart';
 
 void main() {
   runApp(FlappyBirdClone());
@@ -137,6 +140,9 @@ class _GameScreenState extends State<GameScreen> {
   bool showTitleScreen = true; // <-- Add this line
   bool redWhiteBlackFilter = false; // <-- Add this line
 
+  String currentBirdSkin = 'bird.png';
+  Set<String> unlockedSkins = {'bird.png'};
+
   // Adjusted physics constants for Align(y) system
   final double gravity = 0.007 * 0.5; // Bird falls 50% slower (was 0.7 for 30%)
   final double maxFallSpeed = 0.035; // Slightly lower max fall speed
@@ -163,12 +169,60 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    _loadSkinPrefs();
     // Show title screen for 3 seconds
     Future.delayed(Duration(seconds: 3), () {
       setState(() {
         showTitleScreen = false;
       });
     });
+  }
+
+  Future<void> _loadSkinPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      currentBirdSkin = prefs.getString('currentBirdSkin') ?? 'bird.png';
+      unlockedSkins = (prefs.getStringList('unlockedSkins') ?? ['bird.png']).toSet();
+    });
+  }
+
+  Future<void> _saveSkinPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('currentBirdSkin', currentBirdSkin);
+    await prefs.setStringList('unlockedSkins', unlockedSkins.toList());
+  }
+
+  void _openShop() async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ShopScreen(
+        lionsManeCollected: lionsManeCollected,
+        redPillCollected: redPillCollected,
+        bitcoinCollected: bitcoinCollected,
+        unlockedSkins: unlockedSkins,
+        currentBirdSkin: currentBirdSkin,
+        onUnlock: (skin, collectible) {
+          setState(() {
+            if (collectible == 'RedPill' && redPillCollected >= 10) {
+              redPillCollected -= 10;
+              unlockedSkins.add(skin);
+            } else if (collectible == 'LionsMane' && lionsManeCollected >= 10) {
+              lionsManeCollected -= 10;
+              unlockedSkins.add(skin);
+            } else if (collectible == 'Bitcoin' && bitcoinCollected >= 10) {
+              bitcoinCollected -= 10;
+              unlockedSkins.add(skin);
+            }
+            _saveSkinPrefs();
+          });
+        },
+        onEquip: (skin) {
+          setState(() {
+            currentBirdSkin = skin;
+            _saveSkinPrefs();
+          });
+        },
+      ),
+    ));
   }
 
   void startGame() {
@@ -517,6 +571,11 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final safeTop = 127 / 512 * 2 - 1; // ~-0.504
+    final safeBottom = 1 - (94 / 512 * 2); // ~0.633
+    final safeLeft = 75.0;
+    final safeRight = MediaQuery.of(context).size.width - 75.0;
+
     Widget gameStack = Stack(
       children: [
         // Background
@@ -545,9 +604,9 @@ class _GameScreenState extends State<GameScreen> {
         Align(
           alignment: Alignment(0, birdY),
           child: Image.asset(
-            'assets/images/bird.png',
-            width: 70 * 0.7,   // 49.0
-            height: 70 * 0.7,  // 49.0
+            'assets/images/$currentBirdSkin',
+            width: 49,
+            height: 49,
           ),
         ),
         // Collectibles display (show only while playing or game over, but not title screen)
@@ -745,6 +804,17 @@ class _GameScreenState extends State<GameScreen> {
                               inactiveThumbColor: Colors.white,
                               inactiveTrackColor: Colors.black,
                             ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 40,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: ElevatedButton(
+                            onPressed: _openShop,
+                            child: Text('Matrix Skin Shop'),
                           ),
                         ),
                       ),

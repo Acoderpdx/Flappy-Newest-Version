@@ -11,16 +11,21 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.2
   vm_service: ^15.0.0
+  shared_preferences: ^2.2.2
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/background.png
+    - assets/images/bankman_bird.png
     - assets/images/bird.png
-    - assets/images/glue_stick_top.png
-    - assets/images/glue_stick_bottom.png
-    - assets/images/end_screen.png
-    - assets/images/title_screen.png
-    - assets/images/lions_mane.png
-    - assets/images/red_pill.png
     - assets/images/bitcoin.png
+    - assets/images/end_screen.png
+    - assets/images/glue_stick_bottom.png
+    - assets/images/glue_stick_top.png
+    - assets/images/lion_bird.png
+    - assets/images/lions_mane.png
+    - assets/images/matrix_shop.png
+    - assets/images/red_pill.png
+    - assets/images/tate_bird.png
+    - assets/images/title_screen.png
