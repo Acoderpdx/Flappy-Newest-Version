@@ -25,6 +25,7 @@ class GlueStickPair {
   final double gap = 160; // Fixed vertical gap
   final double width = 70; // Fixed width
   double xPosition; // Horizontal position
+  bool hasScored = false; // <-- Add this flag
 
   GlueStickPair({required this.verticalOffset, required this.xPosition});
 
@@ -77,9 +78,12 @@ class _GameScreenState extends State<GameScreen> {
   final double pixelToAlignRatio = 0.002; // Adjust this based on screen height
   final double flapHeight = 24; // Flap height in pixels
 
+  int score = 0; // <-- Add score variable
+
   void startGame() {
     gameHasStarted = true;
     gameOver = false; // Reset game over state
+    score = 0; // Reset score
 
     // Initialize glue sticks
     glueSticks.clear();
@@ -95,12 +99,26 @@ class _GameScreenState extends State<GameScreen> {
       setState(() {
         updateBirdPosition();
         updateGlueSticks();
+        updateScore(); // <-- Add this
         if (checkCollision()) {
           gameOver = true;
           gameLoopTimer?.cancel();
         }
       });
     });
+  }
+
+  void updateScore() {
+    final screenSize = MediaQuery.of(context).size;
+    final birdCenterX = screenSize.width / 2;
+    for (var glueStick in glueSticks) {
+      // Only score once per pair, when bird passes the right edge
+      if (!glueStick.hasScored &&
+          birdCenterX > glueStick.xPosition + glueStick.width) {
+        glueStick.hasScored = true;
+        score += 1;
+      }
+    }
   }
 
   void onTap() {
@@ -148,6 +166,7 @@ class _GameScreenState extends State<GameScreen> {
       if (glueStick.xPosition < -glueStick.width) {
         glueStick.xPosition += glueStickSpacing * glueSticks.length;
         glueStick.verticalOffset = (glueStick.verticalOffset.isNegative ? 1 : -1) * 50.0; // Example offset
+        glueStick.hasScored = false; // <-- Reset flag when recycled
       }
     }
   }
@@ -206,6 +225,7 @@ class _GameScreenState extends State<GameScreen> {
       velocity = 0;
       gameHasStarted = false;
       gameOver = false;
+      score = 0; // <-- Reset score
       glueSticks.clear();
       // Optionally, re-initialize glue sticks here or in startGame()
     });
@@ -244,6 +264,30 @@ class _GameScreenState extends State<GameScreen> {
                 height: 70 * 0.7,  // 49.0
               ),
             ),
+            // Score display (show only while playing)
+            if (gameHasStarted && !gameOver)
+              Positioned(
+                top: 48,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Text(
+                    '$score',
+                    style: TextStyle(
+                      fontSize: 48,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          blurRadius: 8,
+                          color: Colors.black54,
+                          offset: Offset(2, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             // "Tap to Start" overlay
             if (!gameHasStarted && !gameOver)
               Center(
