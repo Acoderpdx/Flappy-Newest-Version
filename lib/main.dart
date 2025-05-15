@@ -59,6 +59,30 @@ class GlueStickPair {
   }
 }
 
+class LionsMane {
+  double xPosition;
+  double yAlign; // Centered in the gap (Align y coordinate)
+  bool collected;
+
+  LionsMane({required this.xPosition, required this.yAlign, this.collected = false});
+
+  Widget build(BuildContext context) {
+    if (collected) return SizedBox.shrink();
+    final screenSize = MediaQuery.of(context).size;
+    // Convert yAlign (-1..1) to pixel position
+    double yPx = screenSize.height / 2 + yAlign * (screenSize.height / 2);
+    return Positioned(
+      left: xPosition,
+      top: yPx - 20, // Center the image (assuming 40x40)
+      child: Image.asset(
+        'assets/images/lions_mane.png',
+        width: 40,
+        height: 40,
+      ),
+    );
+  }
+}
+
 class _GameScreenState extends State<GameScreen> {
   double birdY = 0; // Start in center
   double velocity = 0;
@@ -81,6 +105,8 @@ class _GameScreenState extends State<GameScreen> {
   final double flapHeight = 22; // Flap height in pixels (was 24)
 
   int score = 0; // <-- Add score variable
+  int lionsManeCollected = 0; // <-- Persistent count
+  List<LionsMane> lionsManes = []; // <-- List of collectibles
 
   @override
   void initState() {
@@ -95,15 +121,23 @@ class _GameScreenState extends State<GameScreen> {
 
   void startGame() {
     gameHasStarted = true;
-    gameOver = false; // Reset game over state
-    score = 0; // Reset score
+    gameOver = false;
+    score = 0;
 
     // Initialize glue sticks
     glueSticks.clear();
+    lionsManes.clear(); // <-- Clear collectibles
     for (int i = 0; i < 3; i++) {
+      double verticalOffset = (i % 2 == 0 ? -1 : 1) * 50.0;
+      double xPos = MediaQuery.of(context).size.width + i * glueStickSpacing;
       glueSticks.add(GlueStickPair(
-        verticalOffset: (i % 2 == 0 ? -1 : 1) * 50.0, // Example offset
-        xPosition: MediaQuery.of(context).size.width + i * glueStickSpacing,
+        verticalOffset: verticalOffset,
+        xPosition: xPos,
+      ));
+      // Place lions_mane in the center of the gap
+      lionsManes.add(LionsMane(
+        xPosition: xPos + 70 / 2 - 20, // Centered horizontally in glue stick (assume 40px width)
+        yAlign: (verticalOffset / (MediaQuery.of(context).size.height / 2)), // Center of gap in Align units
       ));
     }
 
@@ -112,7 +146,9 @@ class _GameScreenState extends State<GameScreen> {
       setState(() {
         updateBirdPosition();
         updateGlueSticks();
-        updateScore(); // <-- Add this
+        updateLionsManes(); // <-- Move collectibles
+        updateScore();
+        checkLionsManeCollision(); // <-- Check for collection
         if (checkCollision()) {
           gameOver = true;
           gameLoopTimer?.cancel();
@@ -130,6 +166,59 @@ class _GameScreenState extends State<GameScreen> {
           birdCenterX > glueStick.xPosition + glueStick.width) {
         glueStick.hasScored = true;
         score += 1;
+      }
+    }
+  }
+
+  void updateLionsManes() {
+    for (int i = 0; i < lionsManes.length; i++) {
+      lionsManes[i].xPosition -= glueStickSpeed;
+      // Recycle lions_mane if it exits the screen (sync with glue stick)
+      if (lionsManes[i].xPosition < -40) {
+        // Find corresponding glue stick to get new position and offset
+        int stickIdx = i;
+        double newX = lionsManes[i].xPosition + glueStickSpacing * glueSticks.length;
+        double verticalOffset = glueSticks[stickIdx].verticalOffset;
+        lionsManes[i] = LionsMane(
+          xPosition: newX + 70 / 2 - 20,
+          yAlign: (verticalOffset / (MediaQuery.of(context).size.height / 2)),
+          collected: false,
+        );
+      }
+    }
+  }
+
+  void checkLionsManeCollision() {
+    final screenSize = MediaQuery.of(context).size;
+    final birdWidth = 70.0 * 0.7;
+    final birdHeight = 70.0 * 0.7;
+    final birdHitboxPadding = 0.2;
+    final birdHitboxWidth = birdWidth * (1 - birdHitboxPadding);
+    final birdHitboxHeight = birdHeight * (1 - birdHitboxPadding);
+
+    final birdCenterX = screenSize.width / 2;
+    final birdCenterY = screenSize.height / 2 + birdY * (screenSize.height / 2);
+    final birdRect = Rect.fromCenter(
+      center: Offset(birdCenterX, birdCenterY),
+      width: birdHitboxWidth,
+      height: birdHitboxHeight,
+    );
+
+    for (var lionsMane in lionsManes) {
+      if (lionsMane.collected) continue;
+      // lions_mane position in px
+      double yPx = screenSize.height / 2 + lionsMane.yAlign * (screenSize.height / 2);
+      Rect maneRect = Rect.fromLTWH(
+        lionsMane.xPosition,
+        yPx - 20,
+        40,
+        40,
+      );
+      if (birdRect.overlaps(maneRect)) {
+        setState(() {
+          lionsMane.collected = true;
+          lionsManeCollected += 1;
+        });
       }
     }
   }
@@ -172,14 +261,21 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void updateGlueSticks() {
-    for (var glueStick in glueSticks) {
+    for (int i = 0; i < glueSticks.length; i++) {
+      var glueStick = glueSticks[i];
       glueStick.xPosition -= glueStickSpeed;
 
       // Recycle glue stick if it exits the screen
       if (glueStick.xPosition < -glueStick.width) {
         glueStick.xPosition += glueStickSpacing * glueSticks.length;
-        glueStick.verticalOffset = (glueStick.verticalOffset.isNegative ? 1 : -1) * 50.0; // Example offset
-        glueStick.hasScored = false; // <-- Reset flag when recycled
+        glueStick.verticalOffset = (glueStick.verticalOffset.isNegative ? 1 : -1) * 50.0;
+        glueStick.hasScored = false;
+        // Also recycle lions_mane
+        lionsManes[i] = LionsMane(
+          xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
+          yAlign: (glueStick.verticalOffset / (MediaQuery.of(context).size.height / 2)),
+          collected: false,
+        );
       }
     }
   }
@@ -238,9 +334,10 @@ class _GameScreenState extends State<GameScreen> {
       velocity = 0;
       gameHasStarted = false;
       gameOver = false;
-      score = 0; // <-- Reset score
+      score = 0;
       glueSticks.clear();
-      // Optionally, re-initialize glue sticks here or in startGame()
+      lionsManes.clear();
+      // lionsManeCollected is NOT reset here!
     });
   }
 
@@ -265,6 +362,8 @@ class _GameScreenState extends State<GameScreen> {
         ),
         // Glue sticks
         ...glueSticks.map((glueStick) => glueStick.build(context)).toList(),
+        // Lions Mane collectibles
+        ...lionsManes.map((mane) => mane.build(context)).toList(),
         // Bird
         Align(
           alignment: Alignment(0, birdY),
@@ -274,27 +373,54 @@ class _GameScreenState extends State<GameScreen> {
             height: 70 * 0.7,  // 49.0
           ),
         ),
-        // Score display (show only while playing)
+        // Score and lions_mane display (show only while playing)
         if (gameHasStarted && !gameOver)
           Positioned(
             top: 48,
             left: 0,
             right: 0,
             child: Center(
-              child: Text(
-                '$score',
-                style: TextStyle(
-                  fontSize: 48,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 8,
-                      color: Colors.black54,
-                      offset: Offset(2, 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '$score',
+                    style: TextStyle(
+                      fontSize: 48,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          blurRadius: 8,
+                          color: Colors.black54,
+                          offset: Offset(2, 2),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  SizedBox(width: 24),
+                  Image.asset(
+                    'assets/images/lions_mane.png',
+                    width: 32,
+                    height: 32,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    '$lionsManeCollected',
+                    style: TextStyle(
+                      fontSize: 32,
+                      color: Colors.amber,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          blurRadius: 8,
+                          color: Colors.black54,
+                          offset: Offset(2, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
