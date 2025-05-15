@@ -83,6 +83,52 @@ class LionsMane {
   }
 }
 
+class RedPill {
+  double xPosition;
+  double yAlign;
+  bool collected;
+
+  RedPill({required this.xPosition, required this.yAlign, this.collected = false});
+
+  Widget build(BuildContext context) {
+    if (collected) return SizedBox.shrink();
+    final screenSize = MediaQuery.of(context).size;
+    double yPx = screenSize.height / 2 + yAlign * (screenSize.height / 2);
+    return Positioned(
+      left: xPosition,
+      top: yPx - 17, // Center the image (assuming 34x34)
+      child: Image.asset(
+        'assets/images/red_pill.png',
+        width: 34,
+        height: 34,
+      ),
+    );
+  }
+}
+
+class Bitcoin {
+  double xPosition;
+  double yAlign;
+  bool collected;
+
+  Bitcoin({required this.xPosition, required this.yAlign, this.collected = false});
+
+  Widget build(BuildContext context) {
+    if (collected) return SizedBox.shrink();
+    final screenSize = MediaQuery.of(context).size;
+    double yPx = screenSize.height / 2 + yAlign * (screenSize.height / 2);
+    return Positioned(
+      left: xPosition,
+      top: yPx - 20,
+      child: Image.asset(
+        'assets/images/bitcoin.png',
+        width: 40,
+        height: 40,
+      ),
+    );
+  }
+}
+
 class _GameScreenState extends State<GameScreen> {
   double birdY = 0; // Start in center
   double velocity = 0;
@@ -104,9 +150,15 @@ class _GameScreenState extends State<GameScreen> {
   final double pixelToAlignRatio = 0.002; // Adjust this based on screen height
   final double flapHeight = 22; // Flap height in pixels (was 24)
 
-  int score = 0; // <-- Add score variable
-  int lionsManeCollected = 0; // <-- Persistent count
-  List<LionsMane> lionsManes = []; // <-- List of collectibles
+  int score = 0;
+  int lionsManeCollected = 0;
+  int redPillCollected = 0;
+  int bitcoinCollected = 0;
+  List<LionsMane> lionsManes = [];
+  List<RedPill> redPills = [];
+  List<Bitcoin> bitcoins = [];
+  int collectibleCycleCounter = 0; // 0..5, 0-4 = lions mane, 5 = bitcoin
+  List<int> collectibleTypes = []; // 0 = lions mane, 1 = bitcoin
 
   @override
   void initState() {
@@ -124,9 +176,14 @@ class _GameScreenState extends State<GameScreen> {
     gameOver = false;
     score = 0;
 
-    // Initialize glue sticks
     glueSticks.clear();
-    lionsManes.clear(); // <-- Clear collectibles
+    lionsManes.clear();
+    redPills.clear();
+    bitcoins.clear();
+    collectibleCycleCounter = 0;
+
+    final screenHeight = MediaQuery.of(context).size.height;
+
     for (int i = 0; i < 3; i++) {
       double verticalOffset = (i % 2 == 0 ? -1 : 1) * 50.0;
       double xPos = MediaQuery.of(context).size.width + i * glueStickSpacing;
@@ -134,11 +191,42 @@ class _GameScreenState extends State<GameScreen> {
         verticalOffset: verticalOffset,
         xPosition: xPos,
       ));
-      // Place lions_mane in the center of the gap
-      lionsManes.add(LionsMane(
-        xPosition: xPos + 70 / 2 - 20, // Centered horizontally in glue stick (assume 40px width)
-        yAlign: (verticalOffset / (MediaQuery.of(context).size.height / 2)), // Center of gap in Align units
+
+      // --- Center collectible in the gap ---
+      final gap = 200.0;
+      final screenHeight = MediaQuery.of(context).size.height;
+      double gapTop = screenHeight / 2 + verticalOffset - gap / 2;
+      double gapBottom = screenHeight / 2 + verticalOffset + gap / 2;
+      double gapCenterY = (gapTop + gapBottom) / 2;
+      double yAlign = (gapCenterY - screenHeight / 2) / (screenHeight / 2);
+
+      if (collectibleCycleCounter < 5) {
+        lionsManes.add(LionsMane(
+          xPosition: xPos + 70 / 2 - 20,
+          yAlign: yAlign,
+        ));
+        bitcoins.add(Bitcoin(
+          xPosition: -1000,
+          yAlign: 0,
+          collected: true,
+        ));
+      } else {
+        lionsManes.add(LionsMane(
+          xPosition: -1000,
+          yAlign: 0,
+          collected: true,
+        ));
+        bitcoins.add(Bitcoin(
+          xPosition: xPos + 70 / 2 - 20,
+          yAlign: yAlign,
+        ));
+      }
+      redPills.add(RedPill(
+        xPosition: xPos + 70 / 2 - 17,
+        yAlign: yAlign,
       ));
+
+      collectibleCycleCounter = (collectibleCycleCounter + 1) % 6;
     }
 
     // Start game loop
@@ -146,9 +234,9 @@ class _GameScreenState extends State<GameScreen> {
       setState(() {
         updateBirdPosition();
         updateGlueSticks();
-        updateLionsManes(); // <-- Move collectibles
+        updateCollectibles();
         updateScore();
-        checkLionsManeCollision(); // <-- Check for collection
+        checkCollectibleCollision();
         if (checkCollision()) {
           gameOver = true;
           gameLoopTimer?.cancel();
@@ -170,25 +258,62 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
-  void updateLionsManes() {
-    for (int i = 0; i < lionsManes.length; i++) {
+  void updateCollectibles() {
+    final gap = 200.0;
+    final screenHeight = MediaQuery.of(context).size.height;
+    for (int i = 0; i < glueSticks.length; i++) {
       lionsManes[i].xPosition -= glueStickSpeed;
-      // Recycle lions_mane if it exits the screen (sync with glue stick)
-      if (lionsManes[i].xPosition < -40) {
-        // Find corresponding glue stick to get new position and offset
+      redPills[i].xPosition -= glueStickSpeed;
+      bitcoins[i].xPosition -= glueStickSpeed;
+
+      bool collectibleOffscreen = (lionsManes[i].xPosition < -40 && bitcoins[i].xPosition < -40);
+
+      if (collectibleOffscreen) {
         int stickIdx = i;
-        double newX = lionsManes[i].xPosition + glueStickSpacing * glueSticks.length;
+        double newX = glueSticks[stickIdx].xPosition + glueStickSpacing * glueSticks.length;
         double verticalOffset = glueSticks[stickIdx].verticalOffset;
-        lionsManes[i] = LionsMane(
-          xPosition: newX + 70 / 2 - 20,
-          yAlign: (verticalOffset / (MediaQuery.of(context).size.height / 2)),
+
+        // --- Center collectible in the gap ---
+        double gapTop = screenHeight / 2 + verticalOffset - gap / 2;
+        double gapBottom = screenHeight / 2 + verticalOffset + gap / 2;
+        double gapCenterY = (gapTop + gapBottom) / 2;
+        double yAlign = (gapCenterY - screenHeight / 2) / (screenHeight / 2);
+
+        if (collectibleCycleCounter < 5) {
+          lionsManes[i] = LionsMane(
+            xPosition: newX + 70 / 2 - 20,
+            yAlign: yAlign,
+            collected: false,
+          );
+          bitcoins[i] = Bitcoin(
+            xPosition: -1000,
+            yAlign: 0,
+            collected: true,
+          );
+        } else {
+          lionsManes[i] = LionsMane(
+            xPosition: -1000,
+            yAlign: 0,
+            collected: true,
+          );
+          bitcoins[i] = Bitcoin(
+            xPosition: newX + 70 / 2 - 20,
+            yAlign: yAlign,
+            collected: false,
+          );
+        }
+        redPills[i] = RedPill(
+          xPosition: newX + 70 / 2 - 17,
+          yAlign: yAlign,
           collected: false,
         );
+
+        collectibleCycleCounter = (collectibleCycleCounter + 1) % 6;
       }
     }
   }
 
-  void checkLionsManeCollision() {
+  void checkCollectibleCollision() {
     final screenSize = MediaQuery.of(context).size;
     final birdWidth = 70.0 * 0.7;
     final birdHeight = 70.0 * 0.7;
@@ -204,21 +329,56 @@ class _GameScreenState extends State<GameScreen> {
       height: birdHitboxHeight,
     );
 
-    for (var lionsMane in lionsManes) {
-      if (lionsMane.collected) continue;
-      // lions_mane position in px
-      double yPx = screenSize.height / 2 + lionsMane.yAlign * (screenSize.height / 2);
-      Rect maneRect = Rect.fromLTWH(
-        lionsMane.xPosition,
-        yPx - 20,
-        40,
-        40,
-      );
-      if (birdRect.overlaps(maneRect)) {
-        setState(() {
-          lionsMane.collected = true;
-          lionsManeCollected += 1;
-        });
+    if (redWhiteBlackFilter) {
+      for (var redPill in redPills) {
+        if (redPill.collected) continue;
+        double yPx = screenSize.height / 2 + redPill.yAlign * (screenSize.height / 2);
+        Rect pillRect = Rect.fromLTWH(
+          redPill.xPosition,
+          yPx - 17,
+          34,
+          34,
+        );
+        if (birdRect.overlaps(pillRect)) {
+          setState(() {
+            redPill.collected = true;
+            redPillCollected += 1;
+          });
+        }
+      }
+    } else {
+      for (var i = 0; i < lionsManes.length; i++) {
+        if (!lionsManes[i].collected) {
+          double yPx = screenSize.height / 2 + lionsManes[i].yAlign * (screenSize.height / 2);
+          Rect maneRect = Rect.fromLTWH(
+            lionsManes[i].xPosition,
+            yPx - 17,
+            34,
+            34,
+          );
+          if (birdRect.overlaps(maneRect)) {
+            setState(() {
+              lionsManes[i].collected = true;
+              lionsManeCollected += 1;
+            });
+          }
+        }
+        // Bitcoin collision (only if not collected)
+        if (!bitcoins[i].collected) {
+          double yPx = screenSize.height / 2 + bitcoins[i].yAlign * (screenSize.height / 2);
+          Rect btcRect = Rect.fromLTWH(
+            bitcoins[i].xPosition,
+            yPx - 20,
+            40,
+            40,
+          );
+          if (birdRect.overlaps(btcRect)) {
+            setState(() {
+              bitcoins[i].collected = true;
+              bitcoinCollected += 1;
+            });
+          }
+        }
       }
     }
   }
@@ -270,9 +430,14 @@ class _GameScreenState extends State<GameScreen> {
         glueStick.xPosition += glueStickSpacing * glueSticks.length;
         glueStick.verticalOffset = (glueStick.verticalOffset.isNegative ? 1 : -1) * 50.0;
         glueStick.hasScored = false;
-        // Also recycle lions_mane
+        // Also recycle collectibles
         lionsManes[i] = LionsMane(
-          xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
+          xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
+          yAlign: (glueStick.verticalOffset / (MediaQuery.of(context).size.height / 2)),
+          collected: false,
+        );
+        redPills[i] = RedPill(
+          xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
           yAlign: (glueStick.verticalOffset / (MediaQuery.of(context).size.height / 2)),
           collected: false,
         );
@@ -337,7 +502,10 @@ class _GameScreenState extends State<GameScreen> {
       score = 0;
       glueSticks.clear();
       lionsManes.clear();
-      // lionsManeCollected is NOT reset here!
+      redPills.clear();
+      bitcoins.clear();
+      collectibleTypes.clear();
+      // lionsManeCollected, redPillCollected, bitcoinCollected are NOT reset here!
     });
   }
 
@@ -362,8 +530,17 @@ class _GameScreenState extends State<GameScreen> {
         ),
         // Glue sticks
         ...glueSticks.map((glueStick) => glueStick.build(context)).toList(),
-        // Lions Mane collectibles
-        ...lionsManes.map((mane) => mane.build(context)).toList(),
+        // Collectibles
+        if (redWhiteBlackFilter)
+          ...redPills.map((pill) => pill.build(context)).toList()
+        else
+          ...[
+            for (int i = 0; i < lionsManes.length; i++)
+              if (!bitcoins[i].collected && bitcoins[i].xPosition > 0)
+                bitcoins[i].build(context)
+              else
+                lionsManes[i].build(context)
+          ],
         // Bird
         Align(
           alignment: Alignment(0, birdY),
@@ -373,7 +550,7 @@ class _GameScreenState extends State<GameScreen> {
             height: 70 * 0.7,  // 49.0
           ),
         ),
-        // Score and lions_mane display (show only while playing)
+        // Score and collectibles display (show only while playing)
         if (gameHasStarted && !gameOver)
           Positioned(
             top: 48,
@@ -401,8 +578,8 @@ class _GameScreenState extends State<GameScreen> {
                   SizedBox(width: 24),
                   Image.asset(
                     'assets/images/lions_mane.png',
-                    width: 32,
-                    height: 32,
+                    width: 28,
+                    height: 28,
                   ),
                   SizedBox(width: 4),
                   Text(
@@ -420,6 +597,29 @@ class _GameScreenState extends State<GameScreen> {
                       ],
                     ),
                   ),
+                  SizedBox(width: 18),
+                  Image.asset(
+                    'assets/images/red_pill.png',
+                    width: 28,
+                    height: 28,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    '$redPillCollected',
+                    style: TextStyle(
+                      fontSize: 32,
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          blurRadius: 8,
+                          color: Colors.black54,
+                          offset: Offset(2, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // No bitcoin display here!
                 ],
               ),
             ),
@@ -505,6 +705,29 @@ class _GameScreenState extends State<GameScreen> {
                             style: TextStyle(
                               fontSize: 44,
                               color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              shadows: [
+                                Shadow(
+                                  blurRadius: 8,
+                                  color: Colors.black54,
+                                  offset: Offset(2, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Show bitcoin total only on end screen
+                      Positioned(
+                        top: 70,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Text(
+                            'Bitcoins Collected: $bitcoinCollected',
+                            style: TextStyle(
+                              fontSize: 28,
+                              color: Colors.amber,
                               fontWeight: FontWeight.bold,
                               shadows: [
                                 Shadow(
