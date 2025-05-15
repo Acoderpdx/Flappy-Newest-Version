@@ -65,7 +65,7 @@ class _GameScreenState extends State<GameScreen> {
   bool gameOver = false; // <-- Add game over state
 
   // Adjusted physics constants for Align(y) system
-  final double gravity = 0.007 * 0.6; // Reduce gravity by 40% (original was 0.007)
+  final double gravity = 0.007 * 0.75; // Bird falls 25% slower
   final double maxFallSpeed = 0.04; // Limit max downward velocity in Align(y) units
 
   Timer? gameLoopTimer;
@@ -75,7 +75,7 @@ class _GameScreenState extends State<GameScreen> {
   final double glueStickSpeed = 2; // Speed of movement
 
   final double pixelToAlignRatio = 0.002; // Adjust this based on screen height
-  final double flapHeight = 30; // Flap height in pixels
+  final double flapHeight = 24; // Flap height in pixels
 
   void startGame() {
     gameHasStarted = true;
@@ -104,8 +104,13 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void onTap() {
-    if (!gameHasStarted || gameOver) {
-      if (!gameHasStarted) startGame();
+    if (gameOver) {
+      resetGame();
+      startGame();
+      return;
+    }
+    if (!gameHasStarted) {
+      startGame();
       return;
     }
     jump();
@@ -149,33 +154,43 @@ class _GameScreenState extends State<GameScreen> {
 
   // --- Collision Detection ---
   bool checkCollision() {
-    // Get screen size
     final screenSize = MediaQuery.of(context).size;
-    // Bird's bounding box in pixels
-    final birdWidth = 70.0;
-    final birdHeight = 70.0;
+
+    // Bird's visual size in the game (scaled)
+    final birdWidth = 70.0 * 0.7;  // 49.0
+    final birdHeight = 70.0 * 0.7; // 49.0
+
+    // Shrink bird hitbox for tighter collision (e.g., 20% padding)
+    final birdHitboxPadding = 0.2; // 20% inset
+    final birdHitboxWidth = birdWidth * (1 - birdHitboxPadding);
+    final birdHitboxHeight = birdHeight * (1 - birdHitboxPadding);
+
     final birdCenterX = screenSize.width / 2;
-    // Convert birdY (-1..1) to pixel Y (Align uses center as 0)
     final birdCenterY = screenSize.height / 2 + birdY * (screenSize.height / 2);
     final birdRect = Rect.fromCenter(
       center: Offset(birdCenterX, birdCenterY),
-      width: birdWidth,
-      height: birdHeight,
+      width: birdHitboxWidth,
+      height: birdHitboxHeight,
     );
 
+    // Shrink glue stick hitbox horizontally (e.g., 15% inset)
+    final glueStickHitboxPadding = 0.15; // 15% inset
     for (var glueStick in glueSticks) {
+      final stickX = glueStick.xPosition + glueStick.width * glueStickHitboxPadding / 2;
+      final stickWidth = glueStick.width * (1 - glueStickHitboxPadding);
+
       // Top glue stick
       final topRect = Rect.fromLTWH(
-        glueStick.xPosition,
+        stickX,
         0,
-        glueStick.width,
+        stickWidth,
         screenSize.height / 2 + glueStick.verticalOffset - glueStick.gap / 2,
       );
       // Bottom glue stick
       final bottomRect = Rect.fromLTWH(
-        glueStick.xPosition,
+        stickX,
         screenSize.height - (screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2),
-        glueStick.width,
+        stickWidth,
         screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2,
       );
       if (birdRect.overlaps(topRect) || birdRect.overlaps(bottomRect)) {
@@ -183,6 +198,17 @@ class _GameScreenState extends State<GameScreen> {
       }
     }
     return false;
+  }
+
+  void resetGame() {
+    setState(() {
+      birdY = 0;
+      velocity = 0;
+      gameHasStarted = false;
+      gameOver = false;
+      glueSticks.clear();
+      // Optionally, re-initialize glue sticks here or in startGame()
+    });
   }
 
   @override
@@ -214,8 +240,8 @@ class _GameScreenState extends State<GameScreen> {
               alignment: Alignment(0, birdY),
               child: Image.asset(
                 'assets/images/bird.png',
-                width: 70,
-                height: 70,
+                width: 70 * 0.7,   // 49.0
+                height: 70 * 0.7,  // 49.0
               ),
             ),
             // "Tap to Start" overlay
@@ -235,20 +261,34 @@ class _GameScreenState extends State<GameScreen> {
               Container(
                 color: Colors.black54,
                 child: Center(
-                  child: Text(
-                    'GAME OVER',
-                    style: TextStyle(
-                      fontSize: 36,
-                      color: Colors.redAccent,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          blurRadius: 8,
-                          color: Colors.black,
-                          offset: Offset(2, 2),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'GAME OVER',
+                        style: TextStyle(
+                          fontSize: 36,
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              blurRadius: 8,
+                              color: Colors.black,
+                              offset: Offset(2, 2),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'TAP TO RESTART',
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

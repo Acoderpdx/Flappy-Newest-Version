@@ -1,15 +1,10 @@
-# Uncomment the next line to define a global platform for your project
-platform :ios, '12.0' # Ensure this matches your requirements
+platform :ios, '12.0'
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), File.dirname(__FILE__))
+
+use_frameworks!
+use_modular_headers!
 
 target 'Runner' do
-  # Comment the next line if you don't want to use dynamic frameworks
-  use_frameworks!
-
-  # Pods for Runner
-
-  target 'RunnerTests' do
-    inherit! :search_paths
-    # Pods for testing
-  end
-
+  flutter_install_all_ios_pods(File.dirname(File.realpath(__FILE__)))
 end
