@@ -65,6 +65,7 @@ class _GameScreenState extends State<GameScreen> {
   bool gameHasStarted = false;
   bool gameOver = false; // <-- Add game over state
   bool showTitleScreen = true; // <-- Add this line
+  bool redWhiteBlackFilter = false; // <-- Add this line
 
   // Adjusted physics constants for Align(y) system
   final double gravity = 0.007 * 0.5; // Bird falls 50% slower (was 0.7 for 30%)
@@ -251,6 +252,92 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Widget gameStack = Stack(
+      children: [
+        // Background
+        Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/background.png'),
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        // Glue sticks
+        ...glueSticks.map((glueStick) => glueStick.build(context)).toList(),
+        // Bird
+        Align(
+          alignment: Alignment(0, birdY),
+          child: Image.asset(
+            'assets/images/bird.png',
+            width: 70 * 0.7,   // 49.0
+            height: 70 * 0.7,  // 49.0
+          ),
+        ),
+        // Score display (show only while playing)
+        if (gameHasStarted && !gameOver)
+          Positioned(
+            top: 48,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Text(
+                '$score',
+                style: TextStyle(
+                  fontSize: 48,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(
+                      blurRadius: 8,
+                      color: Colors.black54,
+                      offset: Offset(2, 2),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        // "Tap to Start" overlay
+        if (!gameHasStarted && !gameOver)
+          Center(
+            child: Text(
+              'TAP TO START',
+              style: TextStyle(
+                fontSize: 24,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        // Title screen overlay
+        if (showTitleScreen)
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/title_screen.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+      ],
+    );
+
+    // Apply color filter if enabled
+    if (redWhiteBlackFilter) {
+      gameStack = ColorFiltered(
+        colorFilter: const ColorFilter.matrix(<double>[
+          // Red channel
+          1, 0, 0, 0, 0,
+          // Green channel
+          0, 0, 0, 0, 0,
+          // Blue channel
+          0, 0, 0, 0, 0,
+          // Alpha channel
+          0, 0, 0, 1, 0,
+        ]),
+        child: gameStack,
+      );
+    }
+
     return GestureDetector(
       onTap: showTitleScreen
           ? null // Ignore taps while title screen is showing
@@ -263,70 +350,7 @@ class _GameScreenState extends State<GameScreen> {
       child: Scaffold(
         body: Stack(
           children: [
-            // Background
-            Container(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/images/background.png'),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            // Glue sticks
-            ...glueSticks.map((glueStick) => glueStick.build(context)).toList(),
-            // Bird
-            Align(
-              alignment: Alignment(0, birdY),
-              child: Image.asset(
-                'assets/images/bird.png',
-                width: 70 * 0.7,   // 49.0
-                height: 70 * 0.7,  // 49.0
-              ),
-            ),
-            // Score display (show only while playing)
-            if (gameHasStarted && !gameOver)
-              Positioned(
-                top: 48,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Text(
-                    '$score',
-                    style: TextStyle(
-                      fontSize: 48,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          blurRadius: 8,
-                          color: Colors.black54,
-                          offset: Offset(2, 2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            // "Tap to Start" overlay
-            if (!gameHasStarted && !gameOver)
-              Center(
-                child: Text(
-                  'TAP TO START',
-                  style: TextStyle(
-                    fontSize: 24,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            // Title screen overlay
-            if (showTitleScreen)
-              Positioned.fill(
-                child: Image.asset(
-                  'assets/images/title_screen.png',
-                  fit: BoxFit.cover,
-                ),
-              ),
+            gameStack,
             // End screen (full screen, replaces overlay)
             if (gameOver)
               Positioned.fill(
@@ -364,6 +388,46 @@ class _GameScreenState extends State<GameScreen> {
                                 ),
                               ],
                             ),
+                          ),
+                        ),
+                      ),
+                      // Red/White/Black Filter Switch
+                      Positioned(
+                        bottom: 80,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Red/White/Black Filter',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 4,
+                                      color: Colors.black54,
+                                      offset: Offset(1, 1),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Switch(
+                                value: redWhiteBlackFilter,
+                                onChanged: (val) {
+                                  setState(() {
+                                    redWhiteBlackFilter = val;
+                                  });
+                                },
+                                activeColor: Colors.red,
+                                inactiveThumbColor: Colors.white,
+                                inactiveTrackColor: Colors.black,
+                              ),
+                            ],
                           ),
                         ),
                       ),
