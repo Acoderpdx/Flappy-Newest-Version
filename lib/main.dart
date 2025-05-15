@@ -64,6 +64,7 @@ class _GameScreenState extends State<GameScreen> {
   double velocity = 0;
   bool gameHasStarted = false;
   bool gameOver = false; // <-- Add game over state
+  bool showTitleScreen = true; // <-- Add this line
 
   // Adjusted physics constants for Align(y) system
   final double gravity = 0.007 * 0.5; // Bird falls 50% slower
@@ -79,6 +80,17 @@ class _GameScreenState extends State<GameScreen> {
   final double flapHeight = 24; // Flap height in pixels
 
   int score = 0; // <-- Add score variable
+
+  @override
+  void initState() {
+    super.initState();
+    // Show title screen for 3 seconds
+    Future.delayed(Duration(seconds: 3), () {
+      setState(() {
+        showTitleScreen = false;
+      });
+    });
+  }
 
   void startGame() {
     gameHasStarted = true;
@@ -240,12 +252,14 @@ class _GameScreenState extends State<GameScreen> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: gameOver
-          ? () {
-              resetGame();
-              startGame();
-            }
-          : onTap,
+      onTap: showTitleScreen
+          ? null // Ignore taps while title screen is showing
+          : (gameOver
+              ? () {
+                  resetGame();
+                  startGame();
+                }
+              : onTap),
       child: Scaffold(
         body: Stack(
           children: [
@@ -303,6 +317,14 @@ class _GameScreenState extends State<GameScreen> {
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
+                ),
+              ),
+            // Title screen overlay
+            if (showTitleScreen)
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/title_screen.png',
+                  fit: BoxFit.cover,
                 ),
               ),
             // End screen (full screen, replaces overlay)
