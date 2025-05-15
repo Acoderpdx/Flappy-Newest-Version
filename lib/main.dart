@@ -550,8 +550,8 @@ class _GameScreenState extends State<GameScreen> {
             height: 70 * 0.7,  // 49.0
           ),
         ),
-        // Score and collectibles display (show only while playing)
-        if (gameHasStarted && !gameOver)
+        // Collectibles display (show only while playing or game over, but not title screen)
+        if ((gameHasStarted || gameOver) && !showTitleScreen)
           Positioned(
             top: 48,
             left: 0,
@@ -559,23 +559,9 @@ class _GameScreenState extends State<GameScreen> {
             child: Center(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    '$score',
-                    style: TextStyle(
-                      fontSize: 48,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          blurRadius: 8,
-                          color: Colors.black54,
-                          offset: Offset(2, 2),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: 24),
+                  // Lions Mane
                   Image.asset(
                     'assets/images/lions_mane.png',
                     width: 28,
@@ -598,6 +584,7 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                   SizedBox(width: 18),
+                  // Red Pill
                   Image.asset(
                     'assets/images/red_pill.png',
                     width: 28,
@@ -619,7 +606,29 @@ class _GameScreenState extends State<GameScreen> {
                       ],
                     ),
                   ),
-                  // No bitcoin display here!
+                  SizedBox(width: 28),
+                  // Bitcoin
+                  Image.asset(
+                    'assets/images/bitcoin.png',
+                    width: 28,
+                    height: 28,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    '$bitcoinCollected',
+                    style: TextStyle(
+                      fontSize: 32,
+                      color: Colors.amber,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          blurRadius: 8,
+                          color: Colors.black54,
+                          offset: Offset(2, 2),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -717,66 +726,25 @@ class _GameScreenState extends State<GameScreen> {
                           ),
                         ),
                       ),
-                      // Show bitcoin total only on end screen
+                      // --- Vertical Red/White/Black Filter Switch (only on end screen) ---
                       Positioned(
-                        top: 70,
-                        left: 0,
-                        right: 0,
+                        right: 15,
+                        top: 0,
+                        bottom: 0,
                         child: Center(
-                          child: Text(
-                            'Bitcoins Collected: $bitcoinCollected',
-                            style: TextStyle(
-                              fontSize: 28,
-                              color: Colors.amber,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(
-                                  blurRadius: 8,
-                                  color: Colors.black54,
-                                  offset: Offset(2, 2),
-                                ),
-                              ],
+                          child: RotatedBox(
+                            quarterTurns: 1, // 90 degrees
+                            child: Switch(
+                              value: redWhiteBlackFilter,
+                              onChanged: (val) {
+                                setState(() {
+                                  redWhiteBlackFilter = val;
+                                });
+                              },
+                              activeColor: Colors.red,
+                              inactiveThumbColor: Colors.white,
+                              inactiveTrackColor: Colors.black,
                             ),
-                          ),
-                        ),
-                      ),
-                      // Red/White/Black Filter Switch
-                      Positioned(
-                        bottom: 80,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Red/White/Black Filter',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  shadows: [
-                                    Shadow(
-                                      blurRadius: 4,
-                                      color: Colors.black54,
-                                      offset: Offset(1, 1),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Switch(
-                                value: redWhiteBlackFilter,
-                                onChanged: (val) {
-                                  setState(() {
-                                    redWhiteBlackFilter = val;
-                                  });
-                                },
-                                activeColor: Colors.red,
-                                inactiveThumbColor: Colors.white,
-                                inactiveTrackColor: Colors.black,
-                              ),
-                            ],
                           ),
                         ),
                       ),
