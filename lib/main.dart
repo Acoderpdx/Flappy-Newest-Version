@@ -25,7 +25,7 @@ class GameScreen extends StatefulWidget {
 
 class GlueStickPair {
   double verticalOffset; // Made mutable to allow updates
-  final double gap = 200; // Increased vertical gap (was 160)
+  final double gap = 280; // Increased vertical gap by 40% (was 200)
   final double width = 70; // Fixed width
   double xPosition; // Horizontal position
   bool hasScored = false; // <-- Add this flag
@@ -139,6 +139,7 @@ class _GameScreenState extends State<GameScreen> {
   bool gameOver = false; // <-- Add game over state
   bool showTitleScreen = true; // <-- Add this line
   bool redWhiteBlackFilter = false; // <-- Add this line
+  bool canRestart = true; // Add this flag
 
   String currentBirdSkin = 'bird.png';
   Set<String> unlockedSkins = {'bird.png'};
@@ -247,7 +248,7 @@ class _GameScreenState extends State<GameScreen> {
       ));
 
       // --- Center collectible in the gap ---
-      final gap = 200.0;
+      final gap = 280.0; // Increased gap by 40% (was 200)
       final screenHeight = MediaQuery.of(context).size.height;
       double gapTop = screenHeight / 2 + verticalOffset - gap / 2;
       double gapBottom = screenHeight / 2 + verticalOffset + gap / 2;
@@ -313,7 +314,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void updateCollectibles() {
-    final gap = 200.0;
+    final gap = 280.0; // Increased gap by 40% (was 200)
     final screenHeight = MediaQuery.of(context).size.height;
     for (int i = 0; i < glueSticks.length; i++) {
       lionsManes[i].xPosition -= glueStickSpeed;
@@ -439,8 +440,10 @@ class _GameScreenState extends State<GameScreen> {
 
   void onTap() {
     if (gameOver) {
-      resetGame();
-      startGame();
+      if (canRestart) {
+        resetGame();
+        startGame();
+      }
       return;
     }
     if (!gameHasStarted) {
@@ -734,11 +737,13 @@ class _GameScreenState extends State<GameScreen> {
 
     return GestureDetector(
       onTap: showTitleScreen
-          ? null // Ignore taps while title screen is showing
+          ? null
           : (gameOver
               ? () {
-                  resetGame();
-                  startGame();
+                  if (canRestart) {
+                    resetGame();
+                    startGame();
+                  }
                 }
               : onTap),
       child: Scaffold(
@@ -748,83 +753,183 @@ class _GameScreenState extends State<GameScreen> {
             // End screen (full screen, replaces overlay)
             if (gameOver)
               Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    resetGame();
-                    startGame();
+                child: EndScreenOverlay(
+                  score: score,
+                  canRestart: canRestart,
+                  onShowRestart: () {
+                    setState(() {
+                      canRestart = true;
+                    });
                   },
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.asset(
-                        'assets/images/end_screen.png',
-                        fit: BoxFit.cover,
-                      ),
-                      // Score number only, centered in top 60 pixels
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: 60,
-                        child: Center(
-                          child: Text(
-                            '$score',
-                            style: TextStyle(
-                              fontSize: 44,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(
-                                  blurRadius: 8,
-                                  color: Colors.black54,
-                                  offset: Offset(2, 2),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      // --- Vertical Red/White/Black Filter Switch (only on end screen) ---
-                      Positioned(
-                        right: 15,
-                        top: 0,
-                        bottom: 0,
-                        child: Center(
-                          child: RotatedBox(
-                            quarterTurns: 1, // 90 degrees
-                            child: Switch(
-                              value: redWhiteBlackFilter,
-                              onChanged: (val) {
-                                setState(() {
-                                  redWhiteBlackFilter = val;
-                                });
-                              },
-                              activeColor: Colors.red,
-                              inactiveThumbColor: Colors.white,
-                              inactiveTrackColor: Colors.black,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 40,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: ElevatedButton(
-                            onPressed: _openShop,
-                            child: Text('Matrix Skin Shop'),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  onStartDelay: () {
+                    setState(() {
+                      canRestart = false;
+                    });
+                    Future.delayed(const Duration(seconds: 3), () {
+                      if (mounted && gameOver) {
+                        setState(() {
+                          canRestart = true;
+                        });
+                      }
+                    });
+                  },
+                  // Pass these for the new switch:
+                  shopSwitchValue: _shopSwitchValue,
+                  onShopSwitchChanged: (val) {
+                    setState(() {
+                      _shopSwitchValue = val;
+                    });
+                    if (val) _openShop();
+                  },
+                  redWhiteBlackFilter: redWhiteBlackFilter,
+                  onRedModeChanged: (val) {
+                    setState(() {
+                      redWhiteBlackFilter = val;
+                    });
+                  },
                 ),
               ),
           ],
         ),
       ),
+    );
+  }
+
+  // Add this field to _GameScreenState:
+  bool _shopSwitchValue = false;
+}
+
+// Add this widget at the end of the file:
+class EndScreenOverlay extends StatefulWidget {
+  final int score;
+  final bool canRestart;
+  final VoidCallback onShowRestart;
+  final VoidCallback onStartDelay;
+  final bool shopSwitchValue;
+  final ValueChanged<bool> onShopSwitchChanged;
+  final bool redWhiteBlackFilter;
+  final ValueChanged<bool> onRedModeChanged;
+
+  const EndScreenOverlay({
+    required this.score,
+    required this.canRestart,
+    required this.onShowRestart,
+    required this.onStartDelay,
+    required this.shopSwitchValue,
+    required this.onShopSwitchChanged,
+    required this.redWhiteBlackFilter,
+    required this.onRedModeChanged,
+  });
+
+  @override
+  State<EndScreenOverlay> createState() => _EndScreenOverlayState();
+}
+
+class _EndScreenOverlayState extends State<EndScreenOverlay> {
+  bool delayStarted = false;
+
+  @override
+  void didUpdateWidget(covariant EndScreenOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!delayStarted && !widget.canRestart) {
+      delayStarted = true;
+      widget.onStartDelay();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!delayStarted && !widget.canRestart) {
+      delayStarted = true;
+      widget.onStartDelay();
+    }
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/end_screen.png',
+          fit: BoxFit.cover,
+        ),
+        // Score number only, centered in top 60 pixels
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 60,
+          child: Center(
+            child: Text(
+              '${widget.score}',
+              style: TextStyle(
+                fontSize: 44,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                shadows: [
+                  Shadow(
+                    blurRadius: 8,
+                    color: Colors.black54,
+                    offset: Offset(2, 2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Red/White/Black Filter Switch (right side)
+        Positioned(
+          right: 15,
+          top: 0,
+          bottom: 0,
+          child: Center(
+            child: RotatedBox(
+              quarterTurns: 1,
+              child: Switch(
+                value: widget.redWhiteBlackFilter,
+                onChanged: widget.onRedModeChanged,
+                activeColor: Colors.red,
+                inactiveThumbColor: Colors.white,
+                inactiveTrackColor: Colors.black,
+              ),
+            ),
+          ),
+        ),
+        // Matrix Shop Switch (left side, identical style)
+        Positioned(
+          left: 15,
+          top: 0,
+          bottom: 0,
+          child: Center(
+            child: RotatedBox(
+              quarterTurns: 1,
+              child: Switch(
+                value: widget.shopSwitchValue,
+                onChanged: widget.onShopSwitchChanged,
+                activeColor: Colors.green,
+                inactiveThumbColor: Colors.white,
+                inactiveTrackColor: Colors.black,
+              ),
+            ),
+          ),
+        ),
+        // Only show restart hint/button after delay
+        if (widget.canRestart)
+          Center(
+            child: Text(
+              'Tap to Restart',
+              style: TextStyle(
+                fontSize: 28,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                shadows: [
+                  Shadow(
+                    blurRadius: 8,
+                    color: Colors.black54,
+                    offset: Offset(2, 2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
