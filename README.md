@@ -55,5 +55,34 @@ This project is a custom version of the classic Flappy Bird game built using Flu
 - Replace the images in the `assets/images` directory with your own to change the appearance of the bird, obstacles, and background.
 - Modify the constants in `lib/utils/constants.dart` to adjust game mechanics such as gravity, speed, and dimensions.
 
+## How to create and upload a new game branch (e.g., "lions-mane-pooping-title-screen")
+
+1. Open your terminal and navigate to your project directory:
+   ```
+   cd "/Users/aidanbernard/Documents/Vibe coding/Vibe Coding/Flappy-Newest-Version-main"
+   ```
+
+2. Stage all your changes:
+   ```
+   git add .
+   ```
+
+3. Commit your changes (optional but recommended):
+   ```
+   git commit -m "Implement lions mane pooping title screen"
+   ```
+
+4. Create and switch to a new branch (e.g., "lions-mane-pooping-title-screen"):
+   ```
+   git checkout -b lions-mane-pooping-title-screen
+   ```
+
+5. Push the new branch to your remote repository (replace "origin" with your remote name if different):
+   ```
+   git push -u origin lions-mane-pooping-title-screen
+   ```
+
+6. You can now share this branch or open a pull request on GitHub to merge it.
+
 ## License
 This project is open-source and available for modification and distribution. Enjoy creating your own version of Flappy Bird!

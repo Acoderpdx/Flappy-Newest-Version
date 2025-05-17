@@ -278,6 +278,11 @@ class _GameScreenState extends State<GameScreen> {
   final int _portalGapInterval = 5;
   final Random _rand = Random();
 
+  // --- Red Mode Cash Out logic ---
+  bool _redModeCashOutEnabled = false; // Show cash out switch in red mode
+  bool _redModeCashedOut = false;      // Track if player cashed out
+  int _redModeCashedOutRedPills = 0;   // Amount cashed out
+
   @override
   void initState() {
     super.initState();
@@ -303,17 +308,32 @@ class _GameScreenState extends State<GameScreen> {
   // --- Dynamic Difficulty Getters ---
   double get currentGlueStickSpacing {
     // Tighten spacing from 280 to 140 as score increases
-    return glueStickSpacing - (score * 8).clamp(0, glueStickSpacing - 140).toDouble();
+    // In red mode, halve the spacing for double difficulty
+    double base = glueStickSpacing - (score * 8).clamp(0, glueStickSpacing - 140).toDouble();
+    if (redWhiteBlackFilter) {
+      return (base / 2).clamp(70, base); // never less than 70
+    }
+    return base;
   }
 
   double get currentGapMin {
     // Make gaps tighter: from 364 to 140
-    return 364 - (score * 7).clamp(0, 224).toDouble(); // 364-224 = 140
+    // In red mode, halve the min gap and add more randomness
+    double base = 364 - (score * 7).clamp(0, 224).toDouble(); // 364-224 = 140
+    if (redWhiteBlackFilter) {
+      return (base / 2).clamp(60, base); // never less than 60
+    }
+    return base;
   }
 
   double get currentGapMax {
     // Reduce max gap over time: from 364 to 180
-    return 364 - (score * 5).clamp(0, 184).toDouble(); // 364-184 = 180
+    // In red mode, halve the max gap and add more randomness
+    double base = 364 - (score * 5).clamp(0, 184).toDouble(); // 364-184 = 180
+    if (redWhiteBlackFilter) {
+      return (base / 2).clamp(80, base); // never less than 80
+    }
+    return base;
   }
   // --- End Dynamic Difficulty ---
 
@@ -321,6 +341,9 @@ class _GameScreenState extends State<GameScreen> {
     gameHasStarted = true;
     gameOver = false;
     score = 0;
+    _redModeCashOutEnabled = false;
+    _redModeCashedOut = false;
+    _redModeCashedOutRedPills = 0;
 
     glueSticks.clear();
     lionsManes.clear();
@@ -332,11 +355,31 @@ class _GameScreenState extends State<GameScreen> {
     _portalY = 0.0;
     _gapsSinceLastPortal = 0;
 
-    for (int i = 0; i < 3; i++) {
-      double verticalOffset = (i % 2 == 0 ? -1 : 1) * 50.0;
-      double xPos = MediaQuery.of(context).size.width + i * currentGlueStickSpacing;
-      // --- Use dynamic gap ---
-      double gap = currentGapMin + _rand.nextDouble() * (currentGapMax - currentGapMin);
+    // --- Adaptive initial obstacle count and spacing ---
+    int initialObstacleCount = 3;
+    double initialSpacing = currentGlueStickSpacing;
+
+    // In red mode, start with 3 obstacles but with slightly closer spacing
+    if (redWhiteBlackFilter) {
+      initialObstacleCount = 3;
+      initialSpacing = currentGlueStickSpacing * 0.8;
+    }
+
+    for (int i = 0; i < initialObstacleCount; i++) {
+      double verticalOffset;
+      if (redWhiteBlackFilter) {
+        verticalOffset = (_rand.nextDouble() * 2 - 1) * 120.0;
+      } else {
+        verticalOffset = (i % 2 == 0 ? -1 : 1) * 50.0;
+      }
+      // In red mode, start obstacles a bit further left for instant appearance
+      double xPos = MediaQuery.of(context).size.width * (redWhiteBlackFilter ? 0.7 : 1.0) + i * initialSpacing;
+      double gap;
+      if (redWhiteBlackFilter) {
+        gap = currentGapMin + _rand.nextDouble() * (currentGapMax - currentGapMin) * 1.2;
+      } else {
+        gap = currentGapMin + _rand.nextDouble() * (currentGapMax - currentGapMin);
+      }
       glueSticks.add(GlueStickPair(
         verticalOffset: verticalOffset,
         xPosition: xPos,
@@ -376,7 +419,13 @@ class _GameScreenState extends State<GameScreen> {
       collectibleCycleCounter = (collectibleCycleCounter + 1) % 6;
     }
 
-    gameLoopTimer = Timer.periodic(Duration(milliseconds: 16), (timer) {
+    // --- RED MODE: Make gameplay 30% slower by increasing timer interval ---
+    int timerMs = 16;
+    if (redWhiteBlackFilter) {
+      timerMs = (16 * 1.3).round(); // ~21ms per tick
+    }
+
+    gameLoopTimer = Timer.periodic(Duration(milliseconds: timerMs), (timer) {
       setState(() {
         updateBirdPosition();
         updateGlueSticks();
@@ -561,10 +610,22 @@ class _GameScreenState extends State<GameScreen> {
 
       // Recycle glue stick if it exits the screen
       if (glueStick.xPosition < -glueStick.width) {
-        glueStick.xPosition += currentGlueStickSpacing * glueSticks.length;
+        // Progressive difficulty: decrease spacing as score increases
+        double spacing = currentGlueStickSpacing;
+        glueStick.xPosition += spacing * glueSticks.length;
         // --- Use dynamic gap ---
-        double gap = currentGapMin + _rand.nextDouble() * (currentGapMax - currentGapMin);
-        glueStick.verticalOffset = (glueStick.verticalOffset.isNegative ? 1 : -1) * 50.0;
+        double gap;
+        if (redWhiteBlackFilter) {
+          gap = currentGapMin + _rand.nextDouble() * (currentGapMax - currentGapMin) * 1.2;
+        } else {
+          gap = currentGapMin + _rand.nextDouble() * (currentGapMax - currentGapMin);
+        }
+        // In red mode, increase randomness of verticalOffset
+        if (redWhiteBlackFilter) {
+          glueStick.verticalOffset = (_rand.nextDouble() * 2 - 1) * 120.0;
+        } else {
+          glueStick.verticalOffset = (glueStick.verticalOffset.isNegative ? 1 : -1) * 50.0;
+        }
         glueStick.hasScored = false;
         // Also recycle collectibles
         double gapTop = MediaQuery.of(context).size.height / 2 + glueStick.verticalOffset - gap / 2;
@@ -683,6 +744,12 @@ class _GameScreenState extends State<GameScreen> {
         screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2,
       );
       if (birdRect.overlaps(topRect) || birdRect.overlaps(bottomRect)) {
+        // --- Red Mode: lose all red pills if not cashed out ---
+        if (redWhiteBlackFilter && !_redModeCashedOut) {
+          setState(() {
+            redPillCollected = 0;
+          });
+        }
         return true;
       }
     }
@@ -715,6 +782,44 @@ class _GameScreenState extends State<GameScreen> {
   @override
   Widget build(BuildContext context) {
     print('Building GameScreen');
+
+    // --- Cash Out Switch: exactly matches bitcoin shop button position (left: 15, vertically centered) ---
+    Widget cashOutSwitch = SizedBox.shrink();
+    if (redWhiteBlackFilter && gameHasStarted && !gameOver && !_redModeCashedOut) {
+      cashOutSwitch = Positioned(
+        left: 15,
+        top: 0,
+        bottom: 0,
+        child: Center(
+          child: RotatedBox(
+            quarterTurns: 3, // 270 degrees, vertical orientation
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Switch(
+                  value: false,
+                  onChanged: (val) {
+                    if (val) _handleRedModeCashOut();
+                  },
+                  activeColor: Colors.green,
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: Colors.grey,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Cash Out',
+                  style: TextStyle(
+                    fontSize: 20,
+                    color: Colors.greenAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     Widget gameStack = Stack(
       children: [
@@ -780,95 +885,102 @@ class _GameScreenState extends State<GameScreen> {
             top: 48,
             left: 0,
             right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center, // <-- Center the row
+            child: Column(
               children: [
-                // Lions Mane
-                Image.asset(
-                  'assets/images/lions_mane.png',
-                  width: 28,
-                  height: 28,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.red,
-                      child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                    );
-                  },
-                ),
-                SizedBox(width: 4),
-                Text(
-                  '$lionsManeCollected',
-                  style: TextStyle(
-                    fontSize: 32,
-                    color: Colors.amber,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(2, 2),
-                        blurRadius: 8,
-                        color: Colors.black54,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Lions Mane
+                    Image.asset(
+                      'assets/images/lions_mane.png',
+                      width: 28,
+                      height: 28,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.red,
+                          child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                        );
+                      },
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      '$lionsManeCollected',
+                      style: TextStyle(
+                        fontSize: 32,
+                        color: Colors.amber,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(2, 2),
+                            blurRadius: 8,
+                            color: Colors.black54,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: 18),
-                // Red Pill
-                Image.asset(
-                  'assets/images/red_pill.png',
-                  width: 28,
-                  height: 28,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.red,
-                      child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                    );
-                  },
-                ),
-                SizedBox(width: 4),
-                Text(
-                  '$redPillCollected',
-                  style: TextStyle(
-                    fontSize: 32,
-                    color: Colors.redAccent,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(2, 2),
-                        blurRadius: 8,
-                        color: Colors.black54,
+                    ),
+                    SizedBox(width: 18),
+                    // Red Pill
+                    Image.asset(
+                      'assets/images/red_pill.png',
+                      width: 28,
+                      height: 28,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.red,
+                          child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                        );
+                      },
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      '$redPillCollected',
+                      style: TextStyle(
+                        fontSize: 32,
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(2, 2),
+                            blurRadius: 8,
+                            color: Colors.black54,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: 18),
-                // Bitcoin
-                Image.asset(
-                  'assets/images/bitcoin.png',
-                  width: 28,
-                  height: 28,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.red,
-                      child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                    );
-                  },
-                ),
-                SizedBox(width: 4),
-                Text(
-                  '$bitcoinCollected',
-                  style: TextStyle(
-                    fontSize: 32,
-                    color: Colors.amber,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(2, 2),
-                        blurRadius: 8,
-                        color: Colors.black54,
+                    ),
+                    SizedBox(width: 18),
+                    // Bitcoin
+                    Image.asset(
+                      'assets/images/bitcoin.png',
+                      width: 28,
+                      height: 28,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.red,
+                          child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                        );
+                      },
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      '$bitcoinCollected',
+                      style: TextStyle(
+                        fontSize: 32,
+                        color: Colors.amber,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(2, 2),
+                            blurRadius: 8,
+                            color: Colors.black54,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                // --- Red Mode Cash Out Switch ---
+                if (redWhiteBlackFilter && gameHasStarted && !gameOver && !_redModeCashedOut)
+                  cashOutSwitch,
               ],
             ),
           ),
@@ -979,6 +1091,11 @@ class _GameScreenState extends State<GameScreen> {
                   setState(() {
                     _showBallBlastMiniGame = false;
                     _ballBlastMiniGameSwitchValue = false;
+                  });
+                },
+                onBitcoinCollected: () {
+                  setState(() {
+                    bitcoinCollected += 1;
                   });
                 },
               ),
@@ -1163,14 +1280,18 @@ class _GameScreenState extends State<GameScreen> {
     jump();
   }
 
-  // Make sure jump() is defined:
-  void jump() {
+  // --- Red Mode Cash Out logic ---
+  void _handleRedModeCashOut() {
+    if (!redWhiteBlackFilter || gameOver || _redModeCashedOut) return;
     setState(() {
-      velocity = -flapHeight * pixelToAlignRatio;
+      _redModeCashedOut = true;
+      _redModeCashedOutRedPills = redPillCollected;
+      gameOver = true;
+      gameLoopTimer?.cancel();
     });
   }
 
-  // Make sure this method exists and is named with the underscore:
+  // Add the missing _checkPortalCollision method:
   void _checkPortalCollision() {
     if (!_portalVisible) return;
     final screenSize = MediaQuery.of(context).size;
@@ -1194,15 +1315,15 @@ class _GameScreenState extends State<GameScreen> {
       });
     }
   }
+
+  // Add the missing jump() method:
+  void jump() {
+    setState(() {
+      velocity = -flapHeight * pixelToAlignRatio;
+    });
+  }
 }
 
-// Remove this from the global scope:
-// Future<void> _openShop() async { ... }
-// bool _shopSwitchValue = false;
-
-// ...existing code...
-
-// Add this widget at the end of the file:
 class EndScreenOverlay extends StatefulWidget {
   final int score;
   final bool canRestart;
@@ -1536,6 +1657,15 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
   late double flapInterval;
   double lastFlapX = -1.2;
 
+  // --- Lions Mane collectibles for title screen ---
+  final List<_TitleScreenLionsMane> _lionsManes = [];
+  double _lastDropTime = 0.0;
+  final double _dropIntervalSec = 1.0 / 3.0; // 3 per second
+
+  // Use the same gravity and maxFallSpeed as the main game bird
+  final double collectibleGravity = 0.0039;
+  final double collectibleMaxFallSpeed = 0.025;
+
   @override
   void initState() {
     super.initState();
@@ -1546,15 +1676,17 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
     _animation = Tween<double>(begin: -1.2, end: 1.2).animate(
       CurvedAnimation(parent: _controller, curve: Curves.linear),
     );
-    // The total horizontal distance is 2.4 units (-1.2 to 1.2)
-    // So, for 3 flaps per second over 3 seconds, 9 flaps total
     flapInterval = 2.4 / (flapsPerSecond * 3);
     birdY = baseY;
     velocity = 0.0;
     lastFlapX = -1.2;
+    _lastDropTime = 0.0;
     _controller.addListener(() {
       setState(() {
         double x = _animation.value;
+        double t = _controller.lastElapsedDuration?.inMilliseconds.toDouble() ?? 0.0;
+        t /= 1000.0; // seconds
+
         // Flap if we've moved enough horizontally
         if (x - lastFlapX >= flapInterval) {
           velocity = flapVelocity;
@@ -1566,14 +1698,35 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
         // Clamp Y so it doesn't go off the visible area
         if (birdY > 0.25) birdY = 0.25;
         if (birdY < -0.25) birdY = -0.25;
+
+        // --- Drop lions mane collectibles at 3 per second ---
+        if (t - _lastDropTime >= _dropIntervalSec) {
+          // Drop at bird's current x, but always start at bird's current y
+          _lionsManes.add(_TitleScreenLionsMane(
+            x: x,
+            y: birdY,
+            vy: 0,
+          ));
+          _lastDropTime = t;
+        }
+
+        // --- Animate lions mane collectibles falling with gravity like bird ---
+        for (final mane in _lionsManes) {
+          mane.vy += collectibleGravity;
+          if (mane.vy > collectibleMaxFallSpeed) mane.vy = collectibleMaxFallSpeed;
+          mane.y += mane.vy;
+        }
+        // Remove collectibles that fall off the bottom
+        _lionsManes.removeWhere((mane) => mane.y > 1.2);
       });
     });
-    // Optionally, reset bird position at the start of each animation cycle
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         birdY = baseY;
         velocity = 0.0;
         lastFlapX = -1.2;
+        _lastDropTime = 0.0;
+        _lionsManes.clear();
       }
     });
   }
@@ -1628,21 +1781,40 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
         ),
         SizedBox(
           height: 60,
-          child: AnimatedBuilder(
-            animation: _animation,
-            builder: (context, child) {
-              return Align(
-                alignment: Alignment(_animation.value, birdY),
-                child: Image.asset(
-                  'assets/images/bird.png',
-                  width: birdSize,
-                  height: birdSize,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Icon(Icons.error, color: Colors.red, size: birdSize);
-                  },
-                ),
-              );
-            },
+          child: Stack(
+            children: [
+              // --- Lions Mane collectibles falling straight down from bird ---
+              ..._lionsManes.map((mane) {
+                return Align(
+                  alignment: Alignment(mane.x, mane.y),
+                  child: Image.asset(
+                    'assets/images/lions_mane.png',
+                    width: birdSize * 0.45,
+                    height: birdSize * 0.45,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(Icons.circle, color: Colors.amber, size: birdSize * 0.45);
+                    },
+                  ),
+                );
+              }),
+              // --- Bird ---
+              AnimatedBuilder(
+                animation: _animation,
+                builder: (context, child) {
+                  return Align(
+                    alignment: Alignment(_animation.value, birdY),
+                    child: Image.asset(
+                      'assets/images/bird.png',
+                      width: birdSize,
+                      height: birdSize,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(Icons.error, color: Colors.red, size: birdSize);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
         ),
         SizedBox(height: 24),
@@ -1671,4 +1843,10 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
       ],
     );
   }
+}
+
+// --- Helper class for title screen lions mane collectible ---
+class _TitleScreenLionsMane {
+  double x, y, vy;
+  _TitleScreenLionsMane({required this.x, required this.y, required this.vy});
 }

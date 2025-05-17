@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'main.dart'; // For ScrollingBackground
 
 class BallBlastMiniGameScreen extends StatefulWidget {
   final VoidCallback? onClose;
-  const BallBlastMiniGameScreen({Key? key, this.onClose}) : super(key: key);
+  final void Function()? onBitcoinCollected; // <-- Add this callback
+  const BallBlastMiniGameScreen({Key? key, this.onClose, this.onBitcoinCollected}) : super(key: key);
 
   @override
   State<BallBlastMiniGameScreen> createState() => _BallBlastMiniGameScreenState();
@@ -45,6 +47,12 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
   int currentRound = 1;
   int ballsToClear = 0;
   bool roundTransition = false;
+
+  int projectileColorIndex = 0; // Track which color to use next
+
+  // --- Bitcoin collectible state ---
+  List<_DroppedBitcoin> droppedBitcoins = [];
+  int bitcoinCollected = 0; // <-- Track collected in this mini-game
 
   @override
   void initState() {
@@ -156,11 +164,84 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
               _explode(b.x, b.y, b.radius);
               b.destroyed = true;
               score += 1;
+              // --- Drop a bitcoin at the ball's position ---
+              droppedBitcoins.add(_DroppedBitcoin(
+                x: b.x,
+                y: b.y,
+                vy: 2.5 + rand.nextDouble() * 1.5,
+                vx: (rand.nextDouble() - 0.5) * 4, // add horizontal velocity
+                collected: false,
+              ));
             }
           }
         }
       }
       projectiles.removeWhere((p) => p.hit);
+
+      // --- Move dropped bitcoins with bounce (use same logic as balls) ---
+      for (final btc in droppedBitcoins) {
+        if (!btc.collected) {
+          btc.x += btc.vx;
+          btc.y += btc.vy;
+          btc.vy += _gravityForRound(currentRound);
+
+          // Bounce off floor (same as balls)
+          double floorY = size.height - cannonHeight;
+          if (btc.y + 19 > floorY) { // 19 is half of bitcoin image (38x38)
+            btc.y = floorY - 19;
+            btc.vy = -btc.vy * _bounceForRound(currentRound);
+            if (btc.vy.abs() < 1.2) btc.vy = 0;
+          }
+
+          // Bounce off walls (same as balls)
+          if (btc.x - 19 < 0) {
+            btc.x = 19;
+            btc.vx = -btc.vx;
+          }
+          if (btc.x + 19 > size.width) {
+            btc.x = size.width - 19;
+            btc.vx = -btc.vx;
+          }
+
+          // Friction on ground
+          if (btc.y + 19 >= floorY && btc.vy.abs() < 0.01) {
+            btc.vx *= 0.95;
+            if (btc.vx.abs() < 0.08) btc.vx = 0;
+          }
+        }
+      }
+
+      // --- Collect dropped bitcoins if bird.png (cannon) overlaps ---
+      for (final btc in droppedBitcoins) {
+        if (btc.collected) continue;
+        // Use the same rect as the cannon (bird.png)
+        final cannonRect = Rect.fromLTWH(
+          cannonX * size.width - cannonWidth / 2,
+          size.height - cannonHeight,
+          cannonWidth,
+          cannonHeight,
+        );
+        // Use a circle for the bitcoin
+        final btcCenter = Offset(btc.x, btc.y);
+        final btcRadius = 19.0;
+        // Check if the center of the bitcoin is inside the cannon rectangle
+        if (cannonRect.contains(btcCenter)) {
+          btc.collected = true;
+          bitcoinCollected += 1;
+          if (widget.onBitcoinCollected != null) widget.onBitcoinCollected!();
+        } else {
+          // More accurate: check if the circle overlaps the rectangle
+          final closestX = btc.x.clamp(cannonRect.left, cannonRect.right);
+          final closestY = btc.y.clamp(cannonRect.top, cannonRect.bottom);
+          final dx = btc.x - closestX;
+          final dy = btc.y - closestY;
+          if ((dx * dx + dy * dy) < (btcRadius * btcRadius)) {
+            btc.collected = true;
+            bitcoinCollected += 1;
+            if (widget.onBitcoinCollected != null) widget.onBitcoinCollected!();
+          }
+        }
+      }
 
       // Remove destroyed balls and spawn new ones up to ballsToClear
       int destroyedThisFrame = balls.where((b) => b.destroyed).length;
@@ -248,9 +329,13 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
   void _shoot() {
     if (gameOver) return;
     final size = _lastSize ?? MediaQuery.of(context).size;
+    // Alternate projectile color: 0=green, 1=red, 2=white, 3=black
+    int colorIdx = projectileColorIndex % 4;
+    projectileColorIndex++;
     projectiles.add(_Projectile(
       x: cannonX * size.width,
       y: size.height - cannonHeight - 10,
+      colorIndex: colorIdx,
     ));
   }
 
@@ -290,6 +375,10 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
             onHorizontalDragUpdate: (details) => _onHorizontalDragUpdate(details, constraints),
             child: Stack(
               children: [
+                // --- Add scrolling background ---
+                Positioned.fill(
+                  child: ScrollingBackground(scrollSpeed: 80.0),
+                ),
                 // Balls, projectiles, particles
                 CustomPaint(
                   size: size,
@@ -334,6 +423,20 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
                     ],
                   );
                 }),
+                // --- Dropped bitcoins ---
+                ...droppedBitcoins.where((btc) => !btc.collected).map((btc) {
+                  return Positioned(
+                    left: btc.x - 19,
+                    top: btc.y - 19,
+                    width: 38,
+                    height: 38,
+                    child: Image.asset(
+                      'assets/images/bitcoin.png',
+                      width: 38,
+                      height: 38,
+                    ),
+                  );
+                }),
                 // Cannon (bird.png)
                 Positioned(
                   left: cannonLeft,
@@ -344,6 +447,37 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
                     'assets/images/bird.png',
                     width: cannonWidth,
                     height: cannonHeight,
+                  ),
+                ),
+                // --- Bitcoin counter display (top right) ---
+                Positioned(
+                  top: 24,
+                  right: 24,
+                  child: Row(
+                    children: [
+                      Image.asset(
+                        'assets/images/bitcoin.png',
+                        width: 28,
+                        height: 28,
+                        errorBuilder: (context, error, stackTrace) => Icon(Icons.currency_bitcoin, color: Colors.amber),
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        '$bitcoinCollected',
+                        style: TextStyle(
+                          color: Colors.amber,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              offset: Offset(1, 1),
+                              blurRadius: 4,
+                              color: Colors.black54,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 // Score and round display
@@ -437,7 +571,8 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
 class _Projectile {
   double x, y;
   bool hit = false;
-  _Projectile({required this.x, required this.y});
+  final int colorIndex; // 0=green, 1=red, 2=white, 3=black
+  _Projectile({required this.x, required this.y, required this.colorIndex});
 }
 
 class _Ball {
@@ -482,8 +617,23 @@ class _BallBlastPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // Draw projectiles
-    final projPaint = Paint()..color = Colors.yellowAccent;
     for (final p in projectiles) {
+      Paint projPaint;
+      switch (p.colorIndex) {
+        case 0:
+          projPaint = Paint()..color = const Color(0xFF287f24); // green
+          break;
+        case 1:
+          projPaint = Paint()..color = const Color(0xFFe5322c); // red
+          break;
+        case 2:
+          projPaint = Paint()..color = Colors.white;
+          break;
+        case 3:
+        default:
+          projPaint = Paint()..color = Colors.black;
+          break;
+      }
       canvas.drawCircle(Offset(p.x, p.y), 8, projPaint);
     }
 
@@ -496,4 +646,17 @@ class _BallBlastPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _BallBlastPainter oldDelegate) => true;
+}
+
+// --- Helper class for dropped bitcoin ---
+class _DroppedBitcoin {
+  double x, y, vy, vx;
+  bool collected;
+  _DroppedBitcoin({
+    required this.x,
+    required this.y,
+    required this.vy,
+    required this.vx,
+    this.collected = false,
+  });
 }
