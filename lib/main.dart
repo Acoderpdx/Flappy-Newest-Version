@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'shop_screen.dart'; // (Make sure this import is present)
+import 'crash_mini_game.dart';
 
 void main() {
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -248,6 +249,8 @@ class _GameScreenState extends State<GameScreen> {
   List<int> collectibleTypes = [];
 
   bool _shopSwitchValue = false;
+  bool _miniGameSwitchValue = false;
+  bool _showMiniGame = false;
 
   @override
   void initState() {
@@ -802,7 +805,20 @@ class _GameScreenState extends State<GameScreen> {
         body: Stack(
           children: [
             gameStack,
-            if (gameOver)
+            if (_showMiniGame)
+              CrashMiniGameScreen(
+                lionsManeCollected: lionsManeCollected,
+                redPillCollected: redPillCollected,
+                bitcoinCollected: bitcoinCollected,
+                onCollectibleChange: (collectible, delta) {
+                  setState(() {
+                    if (collectible == 'LionsMane') lionsManeCollected += delta;
+                    if (collectible == 'RedPill') redPillCollected += delta;
+                    if (collectible == 'Bitcoin') bitcoinCollected += delta;
+                  });
+                },
+              ),
+            if (gameOver && !_showMiniGame)
               Positioned.fill(
                 child: EndScreenOverlay(
                   score: score,
@@ -826,6 +842,7 @@ class _GameScreenState extends State<GameScreen> {
                   },
                   shopSwitchValue: _shopSwitchValue,
                   redWhiteBlackFilter: redWhiteBlackFilter,
+                  miniGameSwitchValue: _miniGameSwitchValue,
                   onRedModeChanged: (val) {
                     setState(() {
                       redWhiteBlackFilter = val;
@@ -839,6 +856,12 @@ class _GameScreenState extends State<GameScreen> {
                         _shopSwitchValue = false;
                       });
                     }
+                  },
+                  onMiniGameSwitchChanged: (val) {
+                    setState(() {
+                      _miniGameSwitchValue = val;
+                      _showMiniGame = val;
+                    });
                   },
                 ),
               ),
@@ -900,6 +923,8 @@ class EndScreenOverlay extends StatefulWidget {
   final ValueChanged<bool> onShopSwitchChanged;
   final bool redWhiteBlackFilter;
   final ValueChanged<bool> onRedModeChanged;
+  final bool miniGameSwitchValue;
+  final ValueChanged<bool> onMiniGameSwitchChanged;
 
   const EndScreenOverlay({
     Key? key,
@@ -911,6 +936,8 @@ class EndScreenOverlay extends StatefulWidget {
     required this.onShopSwitchChanged,
     required this.redWhiteBlackFilter,
     required this.onRedModeChanged,
+    required this.miniGameSwitchValue,
+    required this.onMiniGameSwitchChanged,
   }) : super(key: key);
 
   State<EndScreenOverlay> createState() => _EndScreenOverlayState();
@@ -1005,6 +1032,21 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
                 inactiveThumbColor: Colors.white,
                 inactiveTrackColor: Colors.black,
               ),
+            ),
+          ),
+        ),
+        // Mini-game Switch (bottom left)
+        Positioned(
+          left: 15,
+          bottom: 40,
+          child: RotatedBox(
+            quarterTurns: 1,
+            child: Switch(
+              value: widget.miniGameSwitchValue,
+              onChanged: widget.onMiniGameSwitchChanged,
+              activeColor: Colors.blue,
+              inactiveThumbColor: Colors.white,
+              inactiveTrackColor: Colors.grey,
             ),
           ),
         ),
