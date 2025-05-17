@@ -214,14 +214,14 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
       // --- Collect dropped bitcoins if bird.png (cannon) overlaps ---
       for (final btc in droppedBitcoins) {
         if (btc.collected) continue;
-        // Use the same rect as the cannon (bird.png)
+        // Cannon rectangle (bird.png)
         final cannonRect = Rect.fromLTWH(
           cannonX * size.width - cannonWidth / 2,
           size.height - cannonHeight,
           cannonWidth,
           cannonHeight,
         );
-        // Use a circle for the bitcoin
+        // Bitcoin as a circle
         final btcCenter = Offset(btc.x, btc.y);
         final btcRadius = 19.0;
         // Check if the center of the bitcoin is inside the cannon rectangle
@@ -235,7 +235,7 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
           final closestY = btc.y.clamp(cannonRect.top, cannonRect.bottom);
           final dx = btc.x - closestX;
           final dy = btc.y - closestY;
-          if ((dx * dx + dy * dy) < (btcRadius * btcRadius)) {
+          if ((dx * dx + dy * dy) <= (btcRadius * btcRadius)) {
             btc.collected = true;
             bitcoinCollected += 1;
             if (widget.onBitcoinCollected != null) widget.onBitcoinCollected!();
@@ -254,14 +254,23 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
 
       // Ball-cannon collision (game over if hit)
       for (final b in balls) {
+        // Cannon rectangle (bird.png)
         final cannonRect = Rect.fromLTWH(
           cannonX * size.width - cannonWidth / 2,
           size.height - cannonHeight,
           cannonWidth,
           cannonHeight,
         );
-        final ballRect = Rect.fromCircle(center: Offset(b.x, b.y), radius: b.radius);
-        if (cannonRect.overlaps(ballRect)) {
+        // Ball as a circle
+        final ballCenter = Offset(b.x, b.y);
+        final ballRadius = b.radius;
+        // Find closest point on cannon rect to ball center
+        final closestX = ballCenter.dx.clamp(cannonRect.left, cannonRect.right);
+        final closestY = ballCenter.dy.clamp(cannonRect.top, cannonRect.bottom);
+        final dx = ballCenter.dx - closestX;
+        final dy = ballCenter.dy - closestY;
+        // If distance < ball radius, collision
+        if ((dx * dx + dy * dy) <= (ballRadius * ballRadius)) {
           gameOver = true;
           _timer?.cancel();
           _autoShootTimer?.cancel();

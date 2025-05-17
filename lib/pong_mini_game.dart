@@ -34,6 +34,10 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
   final double bitcoinSize = 0.10;
   int bitcoinCollected = 0;
 
+  // --- Add for falling bitcoin ---
+  bool bitcoinFalling = false;
+  double bitcoinVY = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +58,8 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
     bitcoinCollected = 0;
     lives = 3; // <-- Reset lives
     gameOver = false;
+    bitcoinFalling = false;
+    bitcoinVY = 0.0;
     _spawnBitcoin();
     _timer = Timer.periodic(const Duration(milliseconds: 14), (_) => _update());
   }
@@ -122,11 +128,27 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
         }
       }
 
-      // --- Bitcoin collision ---
-      if (bitcoinVisible && _ballHitsBitcoin()) {
+      // --- Bitcoin falling logic ---
+      if (bitcoinVisible && bitcoinFalling) {
+        bitcoinVY += 0.012; // gravity
+        bitcoinY += bitcoinVY;
+        // Bounce off floor
+        if (bitcoinY + bitcoinSize > 1) {
+          bitcoinY = 1 - bitcoinSize;
+          bitcoinVY = -bitcoinVY * 0.5;
+          if (bitcoinVY.abs() < 0.01) bitcoinVY = 0;
+        }
+        // Clamp X
+        if (bitcoinX < -1 + bitcoinSize / 2) bitcoinX = -1 + bitcoinSize / 2;
+        if (bitcoinX > 1 - bitcoinSize / 2) bitcoinX = 1 - bitcoinSize / 2;
+      }
+
+      // --- Bitcoin collision with player paddle (bird.png) ---
+      if (bitcoinVisible && _bitcoinHitsBird()) {
         bitcoinVisible = false;
+        bitcoinFalling = false;
         bitcoinCollected += 1;
-        if (widget.onBitcoinCollected != null) widget.onBitcoinCollected!(); // <-- call parent callback
+        if (widget.onBitcoinCollected != null) widget.onBitcoinCollected!();
         Future.delayed(const Duration(milliseconds: 600), _spawnBitcoin);
       }
 
@@ -147,11 +169,39 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
     ballVY = speed * sin(angle);
   }
 
+  // --- Helper: check if bitcoin overlaps with bird.png (player paddle) ---
+  bool _bitcoinHitsBird() {
+    // Bird (player paddle) is at bottom: Alignment(playerPaddleX, 1)
+    // Bitcoin: Alignment(bitcoinX, bitcoinY)
+    // Both are rendered as squares, so use simple AABB collision
+
+    // Bird (player paddle) rectangle
+    double paddleLeft = playerPaddleX - paddleWidth / 2;
+    double paddleRight = playerPaddleX + paddleWidth / 2;
+    double paddleTop = 1 - paddleHeight;
+    double paddleBottom = 1;
+
+    // Bitcoin rectangle
+    double btcLeft = bitcoinX - bitcoinSize / 2;
+    double btcRight = bitcoinX + bitcoinSize / 2;
+    double btcTop = bitcoinY - bitcoinSize / 2;
+    double btcBottom = bitcoinY + bitcoinSize / 2;
+
+    bool overlap = !(btcRight < paddleLeft ||
+        btcLeft > paddleRight ||
+        btcBottom < paddleTop ||
+        btcTop > paddleBottom);
+
+    return overlap;
+  }
+
   void _spawnBitcoin() {
     setState(() {
       bitcoinX = (Random().nextDouble() * 1.6 - 0.8); // -0.8 to 0.8
-      bitcoinY = (Random().nextDouble() * 1.2 - 0.6); // -0.6 to 0.6
+      bitcoinY = -1 + bitcoinSize / 2; // Start at top
       bitcoinVisible = true;
+      bitcoinFalling = true;
+      bitcoinVY = 0.0;
     });
   }
 
@@ -247,7 +297,7 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
                     },
                   ),
                 ),
-                // Bitcoin collectible
+                // Bitcoin collectible (falling)
                 if (bitcoinVisible)
                   Align(
                     alignment: Alignment(bitcoinX, bitcoinY),
