@@ -297,6 +297,23 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  // --- Dynamic Difficulty Getters ---
+  double get currentGlueStickSpacing {
+    // Tighten spacing from 280 to 140 as score increases
+    return glueStickSpacing - (score * 8).clamp(0, glueStickSpacing - 140).toDouble();
+  }
+
+  double get currentGapMin {
+    // Make gaps tighter: from 364 to 140
+    return 364 - (score * 7).clamp(0, 224).toDouble(); // 364-224 = 140
+  }
+
+  double get currentGapMax {
+    // Reduce max gap over time: from 364 to 180
+    return 364 - (score * 5).clamp(0, 184).toDouble(); // 364-184 = 180
+  }
+  // --- End Dynamic Difficulty ---
+
   void startGame() {
     gameHasStarted = true;
     gameOver = false;
@@ -307,7 +324,6 @@ class _GameScreenState extends State<GameScreen> {
     redPills.clear();
     bitcoins.clear();
     collectibleCycleCounter = 0;
-
     _portalVisible = false;
     _portalX = -1000;
     _portalY = 0.0;
@@ -315,13 +331,14 @@ class _GameScreenState extends State<GameScreen> {
 
     for (int i = 0; i < 3; i++) {
       double verticalOffset = (i % 2 == 0 ? -1 : 1) * 50.0;
-      double xPos = MediaQuery.of(context).size.width + i * glueStickSpacing;
+      double xPos = MediaQuery.of(context).size.width + i * currentGlueStickSpacing;
+      // --- Use dynamic gap ---
+      double gap = currentGapMin + _rand.nextDouble() * (currentGapMax - currentGapMin);
       glueSticks.add(GlueStickPair(
         verticalOffset: verticalOffset,
         xPosition: xPos,
       ));
 
-      final gap = 364.0;
       double gapTop = MediaQuery.of(context).size.height / 2 + verticalOffset - gap / 2;
       double gapBottom = MediaQuery.of(context).size.height / 2 + verticalOffset + gap / 2;
       double gapCenterY = (gapTop + gapBottom) / 2;
@@ -361,7 +378,7 @@ class _GameScreenState extends State<GameScreen> {
         updateBirdPosition();
         updateGlueSticks();
         updateCollectibles();
-        updatePortalPosition(); // <-- add this
+        updatePortalPosition();
         updateScore();
         checkCollectibleCollision();
         if (checkCollision()) {
@@ -541,18 +558,25 @@ class _GameScreenState extends State<GameScreen> {
 
       // Recycle glue stick if it exits the screen
       if (glueStick.xPosition < -glueStick.width) {
-        glueStick.xPosition += glueStickSpacing * glueSticks.length;
+        glueStick.xPosition += currentGlueStickSpacing * glueSticks.length;
+        // --- Use dynamic gap ---
+        double gap = currentGapMin + _rand.nextDouble() * (currentGapMax - currentGapMin);
         glueStick.verticalOffset = (glueStick.verticalOffset.isNegative ? 1 : -1) * 50.0;
         glueStick.hasScored = false;
         // Also recycle collectibles
+        double gapTop = MediaQuery.of(context).size.height / 2 + glueStick.verticalOffset - gap / 2;
+        double gapBottom = MediaQuery.of(context).size.height / 2 + glueStick.verticalOffset + gap / 2;
+        double gapCenterY = (gapTop + gapBottom) / 2;
+        double yAlign = (gapCenterY - MediaQuery.of(context).size.height / 2) / (MediaQuery.of(context).size.height / 2);
+
         lionsManes[i] = LionsMane(
           xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
-          yAlign: (glueStick.verticalOffset / (MediaQuery.of(context).size.height / 2)),
+          yAlign: yAlign,
           collected: false,
         );
         redPills[i] = RedPill(
           xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
-          yAlign: (glueStick.verticalOffset / (MediaQuery.of(context).size.height / 2)),
+          yAlign: yAlign,
           collected: false,
         );
       }
@@ -971,7 +995,6 @@ class _GameScreenState extends State<GameScreen> {
                   shopSwitchValue: _shopSwitchValue,
                   redWhiteBlackFilter: redWhiteBlackFilter,
                   miniGameSwitchValue: _miniGameSwitchValue,
-                  pongMiniGameSwitchValue: _pongMiniGameSwitchValue,
                   onRedModeChanged: (val) {
                     setState(() {
                       redWhiteBlackFilter = val;
@@ -990,12 +1013,6 @@ class _GameScreenState extends State<GameScreen> {
                     setState(() {
                       _miniGameSwitchValue = val;
                       _showMiniGame = val;
-                    });
-                  },
-                  onPongMiniGameSwitchChanged: (val) {
-                    setState(() {
-                      _pongMiniGameSwitchValue = val;
-                      _showPongMiniGame = val;
                     });
                   },
                 ),
@@ -1178,8 +1195,6 @@ class EndScreenOverlay extends StatefulWidget {
   final ValueChanged<bool> onRedModeChanged;
   final bool miniGameSwitchValue;
   final ValueChanged<bool> onMiniGameSwitchChanged;
-  final bool pongMiniGameSwitchValue;
-  final ValueChanged<bool> onPongMiniGameSwitchChanged;
 
   const EndScreenOverlay({
     Key? key,
@@ -1193,8 +1208,6 @@ class EndScreenOverlay extends StatefulWidget {
     required this.onRedModeChanged,
     required this.miniGameSwitchValue,
     required this.onMiniGameSwitchChanged,
-    required this.pongMiniGameSwitchValue,
-    required this.onPongMiniGameSwitchChanged,
   }) : super(key: key);
 
   State<EndScreenOverlay> createState() => _EndScreenOverlayState();
@@ -1302,21 +1315,6 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
               value: widget.miniGameSwitchValue,
               onChanged: widget.onMiniGameSwitchChanged,
               activeColor: Colors.blue,
-              inactiveThumbColor: Colors.white,
-              inactiveTrackColor: Colors.grey,
-            ),
-          ),
-        ),
-        // Pong Mini-game Switch (bottom right)
-        Positioned(
-          right: 15,
-          bottom: 40,
-          child: RotatedBox(
-            quarterTurns: 1,
-            child: Switch(
-              value: widget.pongMiniGameSwitchValue,
-              onChanged: widget.onPongMiniGameSwitchChanged,
-              activeColor: Colors.purple,
               inactiveThumbColor: Colors.white,
               inactiveTrackColor: Colors.grey,
             ),
