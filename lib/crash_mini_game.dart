@@ -11,6 +11,7 @@ class CrashMiniGameScreen extends StatefulWidget {
   final int redPillCollected;
   final int bitcoinCollected;
   final void Function(String collectible, int amount) onCollectibleChange;
+  final VoidCallback? onClose; // <-- Add this
 
   const CrashMiniGameScreen({
     Key? key,
@@ -18,6 +19,7 @@ class CrashMiniGameScreen extends StatefulWidget {
     required this.redPillCollected,
     required this.bitcoinCollected,
     required this.onCollectibleChange,
+    this.onClose, // <-- Add this
   }) : super(key: key);
 
   @override
@@ -47,6 +49,26 @@ class _CrashMiniGameScreenState extends State<CrashMiniGameScreen> {
   static final String vxSignature = 'bustabit-demo-signature';
 
   int hashIndex = 0;
+  late int lionsManeBalance;
+  late int redPillBalance;
+  late int bitcoinBalance;
+
+  @override
+  void initState() {
+    super.initState();
+    lionsManeBalance = widget.lionsManeCollected;
+    redPillBalance = widget.redPillCollected;
+    bitcoinBalance = widget.bitcoinCollected;
+  }
+
+  @override
+  void didUpdateWidget(covariant CrashMiniGameScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Sync balances if parent updates them
+    lionsManeBalance = widget.lionsManeCollected;
+    redPillBalance = widget.redPillCollected;
+    bitcoinBalance = widget.bitcoinCollected;
+  }
 
   @override
   void dispose() {
@@ -69,6 +91,9 @@ class _CrashMiniGameScreenState extends State<CrashMiniGameScreen> {
         if (multiplier >= crashMultiplier) {
           phase = CrashGamePhase.crashed;
           pastResults.insert(0, crashMultiplier);
+          // Lose wager
+          _addCollectibles(selectedCollectible, -wager);
+          widget.onCollectibleChange(selectedCollectible, -wager);
           _timer?.cancel();
         }
       });
@@ -80,9 +105,13 @@ class _CrashMiniGameScreenState extends State<CrashMiniGameScreen> {
       setState(() {
         phase = CrashGamePhase.cashedOut;
         pastResults.insert(0, multiplier);
+        // Award winnings
+        int winnings = (wager * multiplier).floor();
+        _addCollectibles(selectedCollectible, winnings);
       });
       _timer?.cancel();
-      widget.onCollectibleChange(selectedCollectible, -wager);
+      widget.onCollectibleChange(selectedCollectible, -wager); // Remove wagered amount
+      widget.onCollectibleChange(selectedCollectible, (wager * multiplier).floor()); // Add winnings
     }
   }
 
@@ -92,6 +121,14 @@ class _CrashMiniGameScreenState extends State<CrashMiniGameScreen> {
       multiplier = 1.0;
       elapsedMs = 0;
       hashIndex = (hashIndex + 1) % hashChain.length;
+    });
+  }
+
+  void _addCollectibles(String collectible, int amount) {
+    setState(() {
+      if (collectible == 'LionsMane') lionsManeBalance += amount;
+      if (collectible == 'RedPill') redPillBalance += amount;
+      if (collectible == 'Bitcoin') bitcoinBalance += amount;
     });
   }
 
@@ -137,7 +174,13 @@ class _CrashMiniGameScreenState extends State<CrashMiniGameScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.close, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              if (widget.onClose != null) {
+                widget.onClose!();
+              } else {
+                Navigator.pop(context);
+              }
+            },
           ),
         ],
       ),
@@ -161,6 +204,19 @@ class _CrashMiniGameScreenState extends State<CrashMiniGameScreen> {
                 ),
               ),
             ),
+            // --- Balance display ---
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _balanceIcon('assets/images/lions_mane.png', lionsManeBalance, Colors.amber),
+                const SizedBox(width: 18),
+                _balanceIcon('assets/images/red_pill.png', redPillBalance, Colors.redAccent),
+                const SizedBox(width: 18),
+                _balanceIcon('assets/images/bitcoin.png', bitcoinBalance, Colors.amber),
+              ],
+            ),
+            // --- End balance display ---
             const SizedBox(height: 16),
             if (phase == CrashGamePhase.waiting)
               Row(
@@ -245,6 +301,30 @@ class _CrashMiniGameScreenState extends State<CrashMiniGameScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _balanceIcon(String asset, int amount, Color color) {
+    return Row(
+      children: [
+        Image.asset(asset, width: 28, height: 28, errorBuilder: (c, e, s) => Icon(Icons.help, color: color)),
+        const SizedBox(width: 4),
+        Text(
+          '$amount',
+          style: TextStyle(
+            fontSize: 24,
+            color: color,
+            fontWeight: FontWeight.bold,
+            shadows: [
+              Shadow(
+                offset: Offset(1, 1),
+                blurRadius: 4,
+                color: Colors.black54,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

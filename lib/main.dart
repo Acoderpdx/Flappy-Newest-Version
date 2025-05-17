@@ -817,6 +817,12 @@ class _GameScreenState extends State<GameScreen> {
                     if (collectible == 'Bitcoin') bitcoinCollected += delta;
                   });
                 },
+                onClose: () {
+                  setState(() {
+                    _showMiniGame = false;
+                    _miniGameSwitchValue = false;
+                  });
+                },
               ),
             if (gameOver && !_showMiniGame)
               Positioned.fill(
