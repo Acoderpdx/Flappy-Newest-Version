@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'shop_screen.dart';
-
 void main() {
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    // ignore: avoid_print
+    print(details.exceptionAsString());
+  };
   runApp(FlappyBirdClone());
 }
 
@@ -13,8 +16,55 @@ class FlappyBirdClone extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: GameScreen(),
+      home: ErrorBoundary(child: GameScreen()),
     );
+  }
+}
+
+// Add this widget to catch errors in the widget tree.
+class ErrorBoundary extends StatefulWidget {
+  final Widget child;
+  const ErrorBoundary({required this.child});
+  @override
+  State<ErrorBoundary> createState() => _ErrorBoundaryState();
+}
+
+class _ErrorBoundaryState extends State<ErrorBoundary> {
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    ErrorWidget.builder = (FlutterErrorDetails details) {
+      // Do NOT call setState here!
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Text(
+            'Error: ${details.exception}',
+            style: TextStyle(color: Colors.red, fontSize: 18),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Text(
+            'Error: $_error',
+            style: TextStyle(color: Colors.red, fontSize: 18),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+    return widget.child;
   }
 }
 
@@ -25,7 +75,7 @@ class GameScreen extends StatefulWidget {
 
 class GlueStickPair {
   double verticalOffset; // Made mutable to allow updates
-  final double gap = 280; // Increased vertical gap by 40% (was 200)
+  final double gap = 364; // Increased vertical gap by 30% (was 280)
   final double width = 70; // Fixed width
   double xPosition; // Horizontal position
   bool hasScored = false; // <-- Add this flag
@@ -44,6 +94,12 @@ class GlueStickPair {
             width: width,
             height: MediaQuery.of(context).size.height / 2 + verticalOffset - gap / 2,
             fit: BoxFit.fill,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.red,
+                child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+              );
+            },
           ),
         ),
         // Bottom glue stick
@@ -55,6 +111,12 @@ class GlueStickPair {
             width: width,
             height: MediaQuery.of(context).size.height / 2 - verticalOffset - gap / 2,
             fit: BoxFit.fill,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.red,
+                child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+              );
+            },
           ),
         ),
       ],
@@ -81,6 +143,12 @@ class LionsMane {
         'assets/images/lions_mane.png',
         width: 40,
         height: 40,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.red,
+            child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+          );
+        },
       ),
     );
   }
@@ -104,6 +172,12 @@ class RedPill {
         'assets/images/red_pill.png',
         width: 34,
         height: 34,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.red,
+            child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+          );
+        },
       ),
     );
   }
@@ -127,35 +201,40 @@ class Bitcoin {
         'assets/images/bitcoin.png',
         width: 40,
         height: 40,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.red,
+            child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+          );
+        },
       ),
     );
   }
 }
 
 class _GameScreenState extends State<GameScreen> {
-  double birdY = 0; // Start in center
+  double birdY = 0;
   double velocity = 0;
   bool gameHasStarted = false;
-  bool gameOver = false; // <-- Add game over state
-  bool showTitleScreen = true; // <-- Add this line
-  bool redWhiteBlackFilter = false; // <-- Add this line
-  bool canRestart = true; // Add this flag
+  bool gameOver = false;
+  bool showTitleScreen = true;
+  bool redWhiteBlackFilter = false;
+  bool canRestart = true;
 
   String currentBirdSkin = 'bird.png';
   Set<String> unlockedSkins = {'bird.png'};
 
-  // Adjusted physics constants for Align(y) system
-  final double gravity = 0.007 * 0.5; // Bird falls 50% slower (was 0.7 for 30%)
-  final double maxFallSpeed = 0.035; // Slightly lower max fall speed
+  final double gravity = 0.007 * 0.5;
+  final double maxFallSpeed = 0.035;
 
   Timer? gameLoopTimer;
 
   final List<GlueStickPair> glueSticks = [];
-  final double glueStickSpacing = 280; // Horizontal spacing between pairs
-  final double glueStickSpeed = 2; // Speed of movement
+  final double glueStickSpacing = 280;
+  final double glueStickSpeed = 2;
 
-  final double pixelToAlignRatio = 0.002; // Adjust this based on screen height
-  final double flapHeight = 22; // Flap height in pixels (was 24)
+  final double pixelToAlignRatio = 0.002;
+  final double flapHeight = 22;
 
   int score = 0;
   int lionsManeCollected = 0;
@@ -164,14 +243,13 @@ class _GameScreenState extends State<GameScreen> {
   List<LionsMane> lionsManes = [];
   List<RedPill> redPills = [];
   List<Bitcoin> bitcoins = [];
-  int collectibleCycleCounter = 0; // 0..5, 0-4 = lions mane, 5 = bitcoin
-  List<int> collectibleTypes = []; // 0 = lions mane, 1 = bitcoin
+  int collectibleCycleCounter = 0;
+  List<int> collectibleTypes = [];
 
   @override
   void initState() {
     super.initState();
     _loadSkinPrefs();
-    // Show title screen for 3 seconds
     Future.delayed(Duration(seconds: 3), () {
       setState(() {
         showTitleScreen = false;
@@ -187,45 +265,6 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
-  Future<void> _saveSkinPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('currentBirdSkin', currentBirdSkin);
-    await prefs.setStringList('unlockedSkins', unlockedSkins.toList());
-  }
-
-  void _openShop() async {
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ShopScreen(
-        lionsManeCollected: lionsManeCollected,
-        redPillCollected: redPillCollected,
-        bitcoinCollected: bitcoinCollected,
-        unlockedSkins: unlockedSkins,
-        currentBirdSkin: currentBirdSkin,
-        onUnlock: (skin, collectible) {
-          setState(() {
-            if (collectible == 'RedPill' && redPillCollected >= 10) {
-              redPillCollected -= 10;
-              unlockedSkins.add(skin);
-            } else if (collectible == 'LionsMane' && lionsManeCollected >= 10) {
-              lionsManeCollected -= 10;
-              unlockedSkins.add(skin);
-            } else if (collectible == 'Bitcoin' && bitcoinCollected >= 10) {
-              bitcoinCollected -= 10;
-              unlockedSkins.add(skin);
-            }
-            _saveSkinPrefs();
-          });
-        },
-        onEquip: (skin) {
-          setState(() {
-            currentBirdSkin = skin;
-            _saveSkinPrefs();
-          });
-        },
-      ),
-    ));
-  }
-
   void startGame() {
     gameHasStarted = true;
     gameOver = false;
@@ -237,8 +276,6 @@ class _GameScreenState extends State<GameScreen> {
     bitcoins.clear();
     collectibleCycleCounter = 0;
 
-    final screenHeight = MediaQuery.of(context).size.height;
-
     for (int i = 0; i < 3; i++) {
       double verticalOffset = (i % 2 == 0 ? -1 : 1) * 50.0;
       double xPos = MediaQuery.of(context).size.width + i * glueStickSpacing;
@@ -247,13 +284,11 @@ class _GameScreenState extends State<GameScreen> {
         xPosition: xPos,
       ));
 
-      // --- Center collectible in the gap ---
-      final gap = 280.0; // Increased gap by 40% (was 200)
-      final screenHeight = MediaQuery.of(context).size.height;
-      double gapTop = screenHeight / 2 + verticalOffset - gap / 2;
-      double gapBottom = screenHeight / 2 + verticalOffset + gap / 2;
+      final gap = 364.0;
+      double gapTop = MediaQuery.of(context).size.height / 2 + verticalOffset - gap / 2;
+      double gapBottom = MediaQuery.of(context).size.height / 2 + verticalOffset + gap / 2;
       double gapCenterY = (gapTop + gapBottom) / 2;
-      double yAlign = (gapCenterY - screenHeight / 2) / (screenHeight / 2);
+      double yAlign = (gapCenterY - MediaQuery.of(context).size.height / 2) / (MediaQuery.of(context).size.height / 2);
 
       if (collectibleCycleCounter < 5) {
         lionsManes.add(LionsMane(
@@ -284,7 +319,6 @@ class _GameScreenState extends State<GameScreen> {
       collectibleCycleCounter = (collectibleCycleCounter + 1) % 6;
     }
 
-    // Start game loop
     gameLoopTimer = Timer.periodic(Duration(milliseconds: 16), (timer) {
       setState(() {
         updateBirdPosition();
@@ -314,7 +348,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void updateCollectibles() {
-    final gap = 280.0; // Increased gap by 40% (was 200)
+    final gap = 364.0; // Increased gap by 30% (was 280)
     final screenHeight = MediaQuery.of(context).size.height;
     for (int i = 0; i < glueSticks.length; i++) {
       lionsManes[i].xPosition -= glueStickSpeed;
@@ -565,7 +599,6 @@ class _GameScreenState extends State<GameScreen> {
       // lionsManeCollected, redPillCollected, bitcoinCollected are NOT reset here!
     });
   }
-
   @override
   void dispose() {
     gameLoopTimer?.cancel();
@@ -574,21 +607,12 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final safeTop = 127 / 512 * 2 - 1; // ~-0.504
-    final safeBottom = 1 - (94 / 512 * 2); // ~0.633
-    final safeLeft = 75.0;
-    final safeRight = MediaQuery.of(context).size.width - 75.0;
+    print('Building GameScreen');
 
     Widget gameStack = Stack(
       children: [
-        // Background
-        Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/background.png'),
-              fit: BoxFit.cover,
-            ),
-          ),
+        ScrollingBackground(
+          scrollSpeed: 80.0,
         ),
         // Glue sticks
         ...glueSticks.map((glueStick) => glueStick.build(context)).toList(),
@@ -610,6 +634,12 @@ class _GameScreenState extends State<GameScreen> {
             'assets/images/$currentBirdSkin',
             width: 49,
             height: 49,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.red,
+                child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+              );
+            },
           ),
         ),
         // Collectibles display (show only while playing or game over, but not title screen)
@@ -618,16 +648,19 @@ class _GameScreenState extends State<GameScreen> {
             top: 48,
             left: 0,
             right: 0,
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
+            child: Row(
                 children: [
                   // Lions Mane
                   Image.asset(
                     'assets/images/lions_mane.png',
                     width: 28,
                     height: 28,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.red,
+                        child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                      );
+                    },
                   ),
                   SizedBox(width: 4),
                   Text(
@@ -638,9 +671,9 @@ class _GameScreenState extends State<GameScreen> {
                       fontWeight: FontWeight.bold,
                       shadows: [
                         Shadow(
+                          offset: Offset(2, 2),
                           blurRadius: 8,
                           color: Colors.black54,
-                          offset: Offset(2, 2),
                         ),
                       ],
                     ),
@@ -651,6 +684,12 @@ class _GameScreenState extends State<GameScreen> {
                     'assets/images/red_pill.png',
                     width: 28,
                     height: 28,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.red,
+                        child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                      );
+                    },
                   ),
                   SizedBox(width: 4),
                   Text(
@@ -661,19 +700,25 @@ class _GameScreenState extends State<GameScreen> {
                       fontWeight: FontWeight.bold,
                       shadows: [
                         Shadow(
+                          offset: Offset(2, 2),
                           blurRadius: 8,
                           color: Colors.black54,
-                          offset: Offset(2, 2),
                         ),
                       ],
                     ),
                   ),
-                  SizedBox(width: 28),
+                  SizedBox(width: 18),
                   // Bitcoin
                   Image.asset(
                     'assets/images/bitcoin.png',
                     width: 28,
                     height: 28,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.red,
+                        child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                      );
+                    },
                   ),
                   SizedBox(width: 4),
                   Text(
@@ -684,16 +729,15 @@ class _GameScreenState extends State<GameScreen> {
                       fontWeight: FontWeight.bold,
                       shadows: [
                         Shadow(
+                          offset: Offset(2, 2),
                           blurRadius: 8,
                           color: Colors.black54,
-                          offset: Offset(2, 2),
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-            ),
           ),
         // "Tap to Start" overlay
         if (!gameHasStarted && !gameOver)
@@ -713,6 +757,12 @@ class _GameScreenState extends State<GameScreen> {
             child: Image.asset(
               'assets/images/title_screen.png',
               fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.red,
+                  child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                );
+              },
             ),
           ),
       ],
@@ -728,13 +778,12 @@ class _GameScreenState extends State<GameScreen> {
           0, 0, 0, 0, 0,
           // Blue channel
           0, 0, 0, 0, 0,
-          // Alpha channel
+          // Alpha channel,  0, 0, 0, 1, 0,
           0, 0, 0, 1, 0,
         ]),
         child: gameStack,
       );
     }
-
     return GestureDetector(
       onTap: showTitleScreen
           ? null
@@ -750,7 +799,6 @@ class _GameScreenState extends State<GameScreen> {
         body: Stack(
           children: [
             gameStack,
-            // End screen (full screen, replaces overlay)
             if (gameOver)
               Positioned.fill(
                 child: EndScreenOverlay(
@@ -773,18 +821,16 @@ class _GameScreenState extends State<GameScreen> {
                       }
                     });
                   },
-                  // Pass these for the new switch:
                   shopSwitchValue: _shopSwitchValue,
-                  onShopSwitchChanged: (val) {
-                    setState(() {
-                      _shopSwitchValue = val;
-                    });
-                    if (val) _openShop();
-                  },
                   redWhiteBlackFilter: redWhiteBlackFilter,
                   onRedModeChanged: (val) {
                     setState(() {
                       redWhiteBlackFilter = val;
+                    });
+                  },
+                  onShopSwitchChanged: (val) {
+                    setState(() {
+                      _shopSwitchValue = val;
                     });
                   },
                 ),
@@ -794,10 +840,9 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
-
-  // Add this field to _GameScreenState:
-  bool _shopSwitchValue = false;
 }
+
+bool _shopSwitchValue = false;
 
 // Add this widget at the end of the file:
 class EndScreenOverlay extends StatefulWidget {
@@ -811,6 +856,7 @@ class EndScreenOverlay extends StatefulWidget {
   final ValueChanged<bool> onRedModeChanged;
 
   const EndScreenOverlay({
+    Key? key,
     required this.score,
     required this.canRestart,
     required this.onShowRestart,
@@ -819,16 +865,14 @@ class EndScreenOverlay extends StatefulWidget {
     required this.onShopSwitchChanged,
     required this.redWhiteBlackFilter,
     required this.onRedModeChanged,
-  });
+  }) : super(key: key);
 
-  @override
   State<EndScreenOverlay> createState() => _EndScreenOverlayState();
 }
 
 class _EndScreenOverlayState extends State<EndScreenOverlay> {
   bool delayStarted = false;
 
-  @override
   void didUpdateWidget(covariant EndScreenOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!delayStarted && !widget.canRestart) {
@@ -846,9 +890,17 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset(
-          'assets/images/end_screen.png',
-          fit: BoxFit.cover,
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/end_screen.png',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.red,
+                child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+              );
+            },
+          ),
         ),
         // Score number only, centered in top 60 pixels
         Positioned(
@@ -865,9 +917,9 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
                 fontWeight: FontWeight.bold,
                 shadows: [
                   Shadow(
+                    offset: Offset(2, 2),
                     blurRadius: 8,
                     color: Colors.black54,
-                    offset: Offset(2, 2),
                   ),
                 ],
               ),
@@ -921,15 +973,113 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
                 fontWeight: FontWeight.bold,
                 shadows: [
                   Shadow(
+                    offset: Offset(2, 2),
                     blurRadius: 8,
                     color: Colors.black54,
-                    offset: Offset(2, 2),
                   ),
                 ],
               ),
             ),
           ),
       ],
+    );
+  }
+}
+
+class ScrollingBackground extends StatefulWidget {
+  final double scrollSpeed; // pixels per second
+
+  const ScrollingBackground({Key? key, this.scrollSpeed = 80.0}) : super(key: key);
+  @override
+  State<ScrollingBackground> createState() => _ScrollingBackgroundState();
+}
+
+class _ScrollingBackgroundState extends State<ScrollingBackground> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  double _offset = 0.0;
+  double? _lastTick;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10), // Set a duration for repeat
+    )..addListener(_tick)
+     ..repeat();
+  }
+
+  void _tick() {
+    final now = _controller.lastElapsedDuration?.inMilliseconds.toDouble() ?? 0.0;
+    if (_lastTick == null) {
+      _lastTick = now;
+      return;
+    }
+    final dt = (now - _lastTick!) / 1000.0;
+    _lastTick = now;
+    _offset += widget.scrollSpeed * (dt > 0 && dt < 1 ? dt : 1 / 60.0);
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double imageWidth = constraints.maxWidth;
+        final double imageHeight = constraints.maxHeight;
+        final double effectiveOffset = _offset % imageHeight;
+
+        return Stack(
+          children: [
+            Positioned(
+              left: 0,
+              top: effectiveOffset - imageHeight,
+              width: imageWidth,
+              height: imageHeight,
+              child: Image.asset(
+                'assets/images/background.png',
+                width: imageWidth,
+                height: imageHeight,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: imageWidth,
+                    height: imageHeight,
+                    color: Colors.red,
+                    child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                  );
+                },
+              ),
+            ),
+            Positioned(
+              left: 0,
+              top: effectiveOffset,
+              width: imageWidth,
+              height: imageHeight,
+              child: Image.asset(
+                'assets/images/background.png',
+                width: imageWidth,
+                height: imageHeight,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: imageWidth,
+                    height: imageHeight,
+                    color: Colors.red,
+                    child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
