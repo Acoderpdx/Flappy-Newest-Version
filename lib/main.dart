@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'shop_screen.dart'; // (Make sure this import is present)
 
 void main() {
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -245,6 +246,8 @@ class _GameScreenState extends State<GameScreen> {
   List<Bitcoin> bitcoins = [];
   int collectibleCycleCounter = 0;
   List<int> collectibleTypes = [];
+
+  bool _shopSwitchValue = false;
 
   @override
   void initState() {
@@ -829,9 +832,13 @@ class _GameScreenState extends State<GameScreen> {
                     });
                   },
                   onShopSwitchChanged: (val) {
-                    setState(() {
-                      _shopSwitchValue = val;
-                    });
+                    if (val) {
+                      _openShop();
+                    } else {
+                      setState(() {
+                        _shopSwitchValue = false;
+                      });
+                    }
                   },
                 ),
               ),
@@ -840,9 +847,48 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
+
+  // Move this method inside the class
+  Future<void> _openShop() async {
+    setState(() {
+      _shopSwitchValue = false;
+    });
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ShopScreen(
+        lionsManeCollected: lionsManeCollected,
+        redPillCollected: redPillCollected,
+        bitcoinCollected: bitcoinCollected,
+        unlockedSkins: unlockedSkins,
+        currentBirdSkin: currentBirdSkin,
+        onUnlock: (skin, collectible) {
+          setState(() {
+            if (collectible == 'RedPill' && redPillCollected >= 10) {
+              redPillCollected -= 10;
+              unlockedSkins.add(skin);
+            } else if (collectible == 'LionsMane' && lionsManeCollected >= 10) {
+              lionsManeCollected -= 10;
+              unlockedSkins.add(skin);
+            } else if (collectible == 'Bitcoin' && bitcoinCollected >= 10) {
+              bitcoinCollected -= 10;
+              unlockedSkins.add(skin);
+            }
+          });
+        },
+        onEquip: (skin) {
+          setState(() {
+            currentBirdSkin = skin;
+          });
+        },
+      ),
+    ));
+  }
 }
 
-bool _shopSwitchValue = false;
+// Remove this from the global scope:
+// Future<void> _openShop() async { ... }
+// bool _shopSwitchValue = false;
+
+// ...existing code...
 
 // Add this widget at the end of the file:
 class EndScreenOverlay extends StatefulWidget {

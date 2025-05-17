@@ -10,7 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
-  vm_service: ^15.0.0
+  vm_service: ^14.3.1
   shared_preferences: ^2.2.2
 
 dev_dependencies:
