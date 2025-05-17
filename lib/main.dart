@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'shop_screen.dart'; // (Make sure this import is present)
 import 'crash_mini_game.dart';
+import 'pong_mini_game.dart'; // <-- Add this import
+import 'dart:math'; // <-- Add this import
+import 'dart:io'; // <-- Add this import
 
 void main() {
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -217,6 +220,12 @@ class Bitcoin {
 class _GameScreenState extends State<GameScreen> {
   double birdY = 0;
   double velocity = 0;
+  // --- PHYSICS TUNING ---
+  final double gravity = 0.0039; // keep as is for slow jump
+  final double maxFallSpeed = 0.025;
+  final double flapHeight = 29.0; // 10% less than previous 32.2
+  // --- END PHYSICS TUNING ---
+
   bool gameHasStarted = false;
   bool gameOver = false;
   bool showTitleScreen = true;
@@ -226,17 +235,10 @@ class _GameScreenState extends State<GameScreen> {
   String currentBirdSkin = 'bird.png';
   Set<String> unlockedSkins = {'bird.png'};
 
-  final double gravity = 0.007 * 0.5;
-  final double maxFallSpeed = 0.035;
-
-  Timer? gameLoopTimer;
-
-  final List<GlueStickPair> glueSticks = [];
   final double glueStickSpacing = 280;
   final double glueStickSpeed = 2;
 
   final double pixelToAlignRatio = 0.002;
-  final double flapHeight = 22;
 
   int score = 0;
   int lionsManeCollected = 0;
@@ -251,16 +253,40 @@ class _GameScreenState extends State<GameScreen> {
   bool _shopSwitchValue = false;
   bool _miniGameSwitchValue = false;
   bool _showMiniGame = false;
+  bool _pongMiniGameSwitchValue = false;
+  bool _showPongMiniGame = false;
+
+  // --- ROTATION STATE ---
+  double birdAngle = 0.0; // Radians, for smooth rotation
+  // --- END ROTATION STATE ---
+
+  // Add this field to fix the error:
+  Timer? gameLoopTimer;
+
+  // Add this field to fix the error:
+  final List<GlueStickPair> glueSticks = [];
+
+  // Portal state
+  bool _portalVisible = false;
+  double _portalX = -1000; // start offscreen
+  double _portalY = 0.0;
+  final double _portalSize = 49.0;
+  int _gapsSinceLastPortal = 0;
+  final int _portalGapInterval = 5;
+  final Random _rand = Random();
 
   @override
   void initState() {
     super.initState();
     _loadSkinPrefs();
-    Future.delayed(Duration(seconds: 3), () {
-      setState(() {
-        showTitleScreen = false;
+    // Only run the Timer if not in test mode
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      Future.delayed(Duration(seconds: 3), () {
+        setState(() {
+          showTitleScreen = false;
+        });
       });
-    });
+    }
   }
 
   Future<void> _loadSkinPrefs() async {
@@ -281,6 +307,11 @@ class _GameScreenState extends State<GameScreen> {
     redPills.clear();
     bitcoins.clear();
     collectibleCycleCounter = 0;
+
+    _portalVisible = false;
+    _portalX = -1000;
+    _portalY = 0.0;
+    _gapsSinceLastPortal = 0;
 
     for (int i = 0; i < 3; i++) {
       double verticalOffset = (i % 2 == 0 ? -1 : 1) * 50.0;
@@ -330,6 +361,7 @@ class _GameScreenState extends State<GameScreen> {
         updateBirdPosition();
         updateGlueSticks();
         updateCollectibles();
+        updatePortalPosition(); // <-- add this
         updateScore();
         checkCollectibleCollision();
         if (checkCollision()) {
@@ -338,23 +370,198 @@ class _GameScreenState extends State<GameScreen> {
         }
       });
     });
+
+    // Always show the portal.png at a fixed, visible position when the game starts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final screenSize = MediaQuery.of(context).size;
+      // Place the portal at 1/3 from the left, vertically centered
+      double x = screenSize.width * 0.33;
+      double y = screenSize.height / 2;
+      setState(() {
+        _portalVisible = true;
+      });
+    });
   }
 
   void updateScore() {
     final screenSize = MediaQuery.of(context).size;
     final birdCenterX = screenSize.width / 2;
-    for (var glueStick in glueSticks) {
-      // Only score once per pair, when bird passes the right edge
+    for (var i = 0; i < glueSticks.length; i++) {
+      var glueStick = glueSticks[i];
       if (!glueStick.hasScored &&
           birdCenterX > glueStick.xPosition + glueStick.width) {
         glueStick.hasScored = true;
         score += 1;
+        // --- Portal spawn logic ---
+        _gapsSinceLastPortal++;
+        if (_gapsSinceLastPortal >= _portalGapInterval && !_portalVisible) {
+          _trySpawnPortal();
+          _gapsSinceLastPortal = 0;
+        }
       }
     }
   }
 
+  void _trySpawnPortal() {
+    final screenSize = MediaQuery.of(context).size;
+    // Try up to 10 times to find a safe spot
+    for (int attempt = 0; attempt < 10; attempt++) {
+      // X: spawn just off the right edge, like obstacles
+      double x = screenSize.width + 70;
+      // Y: anywhere between 15% and 85% of screen height
+      double y = screenSize.height * (0.15 + 0.7 * _rand.nextDouble());
+
+      Rect portalRect = Rect.fromLTWH(
+        x - _portalSize / 2,
+        y - _portalSize / 2,
+        _portalSize,
+        _portalSize,
+      );
+
+      // Avoid obstacles (glue sticks)
+      bool overlapsObstacle = false;
+      for (var glueStick in glueSticks) {
+        // Top glue stick
+        Rect topRect = Rect.fromLTWH(
+          glueStick.xPosition,
+          0,
+          glueStick.width,
+          screenSize.height / 2 + glueStick.verticalOffset - glueStick.gap / 2,
+        );
+        // Bottom glue stick
+        Rect bottomRect = Rect.fromLTWH(
+          glueStick.xPosition,
+          screenSize.height - (screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2),
+          glueStick.width,
+          screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2,
+        );
+        if (portalRect.overlaps(topRect) || portalRect.overlaps(bottomRect)) {
+          overlapsObstacle = true;
+          break;
+        }
+      }
+      if (overlapsObstacle) continue;
+
+      // Avoid collectibles
+      bool overlapsCollectible = false;
+      for (var i = 0; i < lionsManes.length; i++) {
+        if (!lionsManes[i].collected) {
+          double yPx = screenSize.height / 2 + lionsManes[i].yAlign * (screenSize.height / 2);
+          Rect maneRect = Rect.fromLTWH(
+            lionsManes[i].xPosition,
+            yPx - 20,
+            40,
+            40,
+          );
+          if (portalRect.overlaps(maneRect)) {
+            overlapsCollectible = true;
+            break;
+          }
+        }
+        if (!bitcoins[i].collected) {
+          double yPx = screenSize.height / 2 + bitcoins[i].yAlign * (screenSize.height / 2);
+          Rect btcRect = Rect.fromLTWH(
+            bitcoins[i].xPosition,
+            yPx - 20,
+            40,
+            40,
+          );
+          if (portalRect.overlaps(btcRect)) {
+            overlapsCollectible = true;
+            break;
+          }
+        }
+        if (!redPills[i].collected) {
+          double yPx = screenSize.height / 2 + redPills[i].yAlign * (screenSize.height / 2);
+          Rect pillRect = Rect.fromLTWH(
+            redPills[i].xPosition,
+            yPx - 17,
+            34,
+            34,
+          );
+          if (portalRect.overlaps(pillRect)) {
+            overlapsCollectible = true;
+            break;
+          }
+        }
+      }
+      if (overlapsCollectible) continue;
+
+      // If we get here, it's a safe spot
+      setState(() {
+        _portalX = x;
+        _portalY = y;
+        _portalVisible = true;
+      });
+      break;
+    }
+  }
+
+  void updatePortalPosition() {
+    if (_portalVisible) {
+      _portalX -= glueStickSpeed;
+      // Remove portal if it goes off screen
+      if (_portalX < -_portalSize) {
+        _portalVisible = false;
+      }
+    }
+  }
+
+  void updateBirdPosition() {
+    // Apply gravity and limit downward velocity
+    velocity += gravity;
+    if (velocity > maxFallSpeed) velocity = maxFallSpeed;
+
+    // Update bird position
+    birdY += velocity;
+
+    // Clamp position to stay within screen bounds
+    if (birdY > 1) {
+      birdY = 1;
+      velocity = 0;
+    } else if (birdY < -1) {
+      birdY = -1;
+      velocity = 0;
+    }
+
+    // --- ROTATION LOGIC ---
+    // Calculate target angle based on velocity
+    double targetAngle = velocity * 18.0; // Increased scale for more dramatic rotation
+    targetAngle = targetAngle.clamp(-0.5, 1.57); // -0.5 rad (~-28deg) to 1.57 rad (~90deg)
+    // Smoothly interpolate current angle toward target
+    birdAngle += (targetAngle - birdAngle) * 0.18; // smoothing factor
+    // --- END ROTATION LOGIC ---
+    _checkPortalCollision();
+  }
+
+  void updateGlueSticks() {
+    for (int i = 0; i < glueSticks.length; i++) {
+      var glueStick = glueSticks[i];
+      glueStick.xPosition -= glueStickSpeed;
+
+      // Recycle glue stick if it exits the screen
+      if (glueStick.xPosition < -glueStick.width) {
+        glueStick.xPosition += glueStickSpacing * glueSticks.length;
+        glueStick.verticalOffset = (glueStick.verticalOffset.isNegative ? 1 : -1) * 50.0;
+        glueStick.hasScored = false;
+        // Also recycle collectibles
+        lionsManes[i] = LionsMane(
+          xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
+          yAlign: (glueStick.verticalOffset / (MediaQuery.of(context).size.height / 2)),
+          collected: false,
+        );
+        redPills[i] = RedPill(
+          xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
+          yAlign: (glueStick.verticalOffset / (MediaQuery.of(context).size.height / 2)),
+          collected: false,
+        );
+      }
+    }
+  }
+
+  // Only ONE updateCollectibles method should exist:
   void updateCollectibles() {
-    final gap = 364.0; // Increased gap by 30% (was 280)
+    final gap = 364.0;
     final screenHeight = MediaQuery.of(context).size.height;
     for (int i = 0; i < glueSticks.length; i++) {
       lionsManes[i].xPosition -= glueStickSpeed;
@@ -368,7 +575,6 @@ class _GameScreenState extends State<GameScreen> {
         double newX = glueSticks[stickIdx].xPosition + glueStickSpacing * glueSticks.length;
         double verticalOffset = glueSticks[stickIdx].verticalOffset;
 
-        // --- Center collectible in the gap ---
         double gapTop = screenHeight / 2 + verticalOffset - gap / 2;
         double gapBottom = screenHeight / 2 + verticalOffset + gap / 2;
         double gapCenterY = (gapTop + gapBottom) / 2;
@@ -408,6 +614,434 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
+  // --- Collision Detection ---
+  bool checkCollision() {
+    final screenSize = MediaQuery.of(context).size;
+
+    // Bird's visual size in the game (scaled)
+    final birdWidth = 70.0 * 0.7;  // 49.0
+    final birdHeight = 70.0 * 0.7; // 49.0
+
+    // Shrink bird hitbox for tighter collision (e.g., 20% padding)
+    final birdHitboxPadding = 0.2; // 20% inset
+    final birdHitboxWidth = birdWidth * (1 - birdHitboxPadding);
+    final birdHitboxHeight = birdHeight * (1 - birdHitboxPadding);
+
+    final birdCenterX = screenSize.width / 2;
+    final birdCenterY = screenSize.height / 2 + birdY * (screenSize.height / 2);
+    final birdRect = Rect.fromCenter(
+      center: Offset(birdCenterX, birdCenterY),
+      width: birdHitboxWidth,
+      height: birdHitboxHeight,
+    );
+
+    // Shrink glue stick hitbox horizontally (e.g., 15% inset)
+    final glueStickHitboxPadding = 0.15; // 15% inset
+    for (var glueStick in glueSticks) {
+      final stickX = glueStick.xPosition + glueStick.width * glueStickHitboxPadding / 2;
+      final stickWidth = glueStick.width * (1 - glueStickHitboxPadding);
+
+      // Top glue stick
+      final topRect = Rect.fromLTWH(
+        stickX,
+        0,
+        stickWidth,
+        screenSize.height / 2 + glueStick.verticalOffset - glueStick.gap / 2,
+      );
+      // Bottom glue stick
+      final bottomRect = Rect.fromLTWH(
+        stickX,
+        screenSize.height - (screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2),
+        stickWidth,
+        screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2,
+      );
+      if (birdRect.overlaps(topRect) || birdRect.overlaps(bottomRect)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void resetGame() {
+    setState(() {
+      birdY = 0;
+      velocity = 0;
+      gameHasStarted = false;
+      gameOver = false;
+      score = 0;
+      glueSticks.clear();
+      lionsManes.clear();
+      redPills.clear();
+      bitcoins.clear();
+      collectibleTypes.clear();
+      // lionsManeCollected, redPillCollected, bitcoinCollected are NOT reset here!
+      _portalVisible = false;
+      _gapsSinceLastPortal = 0;
+    });
+  }
+  @override
+  void dispose() {
+    gameLoopTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    print('Building GameScreen');
+
+    Widget gameStack = Stack(
+      children: [
+        ScrollingBackground(
+          scrollSpeed: 80.0,
+        ),
+        // Glue sticks
+        ...glueSticks.map((glueStick) => glueStick.build(context)).toList(),
+        // Collectibles
+        if (redWhiteBlackFilter)
+          ...redPills.map((pill) => pill.build(context)).toList()
+        else
+          ...[
+            for (int i = 0; i < lionsManes.length; i++)
+              if (!bitcoins[i].collected && bitcoins[i].xPosition > 0)
+                bitcoins[i].build(context)
+              else
+                lionsManes[i].build(context)
+          ],
+        // Bird
+        Align(
+          alignment: Alignment(0, birdY),
+          child: Transform.rotate(
+            angle: birdAngle,
+            child: Image.asset(
+              'assets/images/$currentBirdSkin',
+              width: 49,
+              height: 49,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.red,
+                  child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                );
+              },
+            ),
+          ),
+        ),
+        // Portal (portal.png image) -- now rendered AFTER the bird so it's in front
+        if (_portalVisible)
+          Positioned(
+            left: _portalX - _portalSize / 2,
+            top: _portalY - _portalSize / 2,
+            child: Image.asset(
+              'assets/images/portal.png',
+              width: _portalSize,
+              height: _portalSize,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: _portalSize,
+                  height: _portalSize,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                );
+              },
+            ),
+          ),
+        // Collectibles display (show only while playing or game over, but not title screen)
+        if ((gameHasStarted || gameOver) && !showTitleScreen)
+          Positioned(
+            top: 48,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center, // <-- Center the row
+              children: [
+                // Lions Mane
+                Image.asset(
+                  'assets/images/lions_mane.png',
+                  width: 28,
+                  height: 28,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.red,
+                      child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                    );
+                  },
+                ),
+                SizedBox(width: 4),
+                Text(
+                  '$lionsManeCollected',
+                  style: TextStyle(
+                    fontSize: 32,
+                    color: Colors.amber,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(2, 2),
+                        blurRadius: 8,
+                        color: Colors.black54,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 18),
+                // Red Pill
+                Image.asset(
+                  'assets/images/red_pill.png',
+                  width: 28,
+                  height: 28,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.red,
+                      child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                    );
+                  },
+                ),
+                SizedBox(width: 4),
+                Text(
+                  '$redPillCollected',
+                  style: TextStyle(
+                    fontSize: 32,
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(2, 2),
+                        blurRadius: 8,
+                        color: Colors.black54,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 18),
+                // Bitcoin
+                Image.asset(
+                  'assets/images/bitcoin.png',
+                  width: 28,
+                  height: 28,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.red,
+                      child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                    );
+                  },
+                ),
+                SizedBox(width: 4),
+                Text(
+                  '$bitcoinCollected',
+                  style: TextStyle(
+                    fontSize: 32,
+                    color: Colors.amber,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(2, 2),
+                        blurRadius: 8,
+                        color: Colors.black54,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        // "Tap to Start" overlay
+        if (!gameHasStarted && !gameOver)
+          Center(
+            child: Text(
+              'TAP TO START',
+              style: TextStyle(
+                fontSize: 24,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        // Title screen overlay
+        if (showTitleScreen)
+          Positioned.fill(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  'assets/images/title_screen.png', // <-- use the new image
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.red,
+                      child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                    );
+                  },
+                ),
+                Center(
+                  child: _TitleScreenContent(),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    // Apply color filter if enabled
+    if (redWhiteBlackFilter) {
+      gameStack = ColorFiltered(
+        colorFilter: const ColorFilter.matrix(<double>[
+          // Red channel
+          1, 0, 0, 0, 0,
+          // Green channel
+          0, 0, 0, 0, 0,
+          // Blue channel
+          0, 0, 0, 0, 0,
+          // Alpha channel,  0, 0, 0, 1, 0,
+          0, 0, 0, 1, 0,
+        ]),
+        child: gameStack,
+      );
+    }
+    return GestureDetector(
+      onTap: showTitleScreen
+          ? null
+          : (gameOver
+              ? () {
+                  if (canRestart) {
+                    resetGame();
+                    startGame();
+                  }
+                }
+              : onTap),
+      child: Scaffold(
+        body: Stack(
+          children: [
+            gameStack,
+            if (_showMiniGame)
+              CrashMiniGameScreen(
+                lionsManeCollected: lionsManeCollected,
+                redPillCollected: redPillCollected,
+                bitcoinCollected: bitcoinCollected,
+                onCollectibleChange: (collectible, delta) {
+                  setState(() {
+                    if (collectible == 'LionsMane') lionsManeCollected += delta;
+                    if (collectible == 'RedPill') redPillCollected += delta;
+                    if (collectible == 'Bitcoin') bitcoinCollected += delta;
+                  });
+                },
+                onClose: () {
+                  setState(() {
+                    _showMiniGame = false;
+                    _miniGameSwitchValue = false;
+                  });
+                },
+              ),
+            if (_showPongMiniGame)
+              PongMiniGameScreen(
+                onClose: () {
+                  setState(() {
+                    _showPongMiniGame = false;
+                    _pongMiniGameSwitchValue = false;
+                  });
+                },
+                onBitcoinCollected: () {
+                  setState(() {
+                    bitcoinCollected += 1;
+                  });
+                },
+              ),
+            if (gameOver && !_showMiniGame && !_showPongMiniGame)
+              Positioned.fill(
+                child: EndScreenOverlay(
+                  score: score,
+                  canRestart: canRestart,
+                  onShowRestart: () {
+                    setState(() {
+                      canRestart = true;
+                    });
+                  },
+                  onStartDelay: () {
+                    setState(() {
+                      canRestart = false;
+                    });
+                    Future.delayed(const Duration(seconds: 3), () {
+                      if (mounted && gameOver) {
+                        setState(() {
+                          canRestart = true;
+                        });
+                      }
+                    });
+                  },
+                  shopSwitchValue: _shopSwitchValue,
+                  redWhiteBlackFilter: redWhiteBlackFilter,
+                  miniGameSwitchValue: _miniGameSwitchValue,
+                  pongMiniGameSwitchValue: _pongMiniGameSwitchValue,
+                  onRedModeChanged: (val) {
+                    setState(() {
+                      redWhiteBlackFilter = val;
+                    });
+                  },
+                  onShopSwitchChanged: (val) {
+                    if (val) {
+                      _openShop();
+                    } else {
+                      setState(() {
+                        _shopSwitchValue = false;
+                      });
+                    }
+                  },
+                  onMiniGameSwitchChanged: (val) {
+                    setState(() {
+                      _miniGameSwitchValue = val;
+                      _showMiniGame = val;
+                    });
+                  },
+                  onPongMiniGameSwitchChanged: (val) {
+                    setState(() {
+                      _pongMiniGameSwitchValue = val;
+                      _showPongMiniGame = val;
+                    });
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Move this method inside the class
+  Future<void> _openShop() async {
+    setState(() {
+      _shopSwitchValue = false;
+    });
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ShopScreen(
+        lionsManeCollected: lionsManeCollected,
+        redPillCollected: redPillCollected,
+        bitcoinCollected: bitcoinCollected,
+        unlockedSkins: unlockedSkins,
+        currentBirdSkin: currentBirdSkin,
+        onUnlock: (skin, collectible) {
+          setState(() {
+            if (collectible == 'RedPill' && redPillCollected >= 10) {
+              redPillCollected -= 10;
+              unlockedSkins.add(skin);
+            } else if (collectible == 'LionsMane' && lionsManeCollected >= 10) {
+              lionsManeCollected -= 10;
+              unlockedSkins.add(skin);
+            } else if (collectible == 'Bitcoin' && bitcoinCollected >= 10) {
+              bitcoinCollected -= 10;
+              unlockedSkins.add(skin);
+            }
+          });
+        },
+        onEquip: (skin) {
+          setState(() {
+            currentBirdSkin = skin;
+          });
+        },
+      ),
+    ));
+  }
+
+  // Add this method to fix the error:
   void checkCollectibleCollision() {
     final screenSize = MediaQuery.of(context).size;
     final birdWidth = 70.0 * 0.7;
@@ -493,423 +1127,36 @@ class _GameScreenState extends State<GameScreen> {
     jump();
   }
 
+  // Make sure jump() is defined:
   void jump() {
     setState(() {
-      velocity = -flapHeight * pixelToAlignRatio; // Convert pixels to Align(y) units
+      velocity = -flapHeight * pixelToAlignRatio;
     });
   }
 
-  void updateBirdPosition() {
-    // Apply gravity and limit downward velocity
-    velocity += gravity;
-    if (velocity > maxFallSpeed) velocity = maxFallSpeed;
-
-    // Update bird position
-    birdY += velocity;
-
-    // Clamp position to stay within screen bounds
-    if (birdY > 1) {
-      birdY = 1;
-      velocity = 0;
-    } else if (birdY < -1) {
-      birdY = -1;
-      velocity = 0;
-    }
-  }
-
-  void updateGlueSticks() {
-    for (int i = 0; i < glueSticks.length; i++) {
-      var glueStick = glueSticks[i];
-      glueStick.xPosition -= glueStickSpeed;
-
-      // Recycle glue stick if it exits the screen
-      if (glueStick.xPosition < -glueStick.width) {
-        glueStick.xPosition += glueStickSpacing * glueSticks.length;
-        glueStick.verticalOffset = (glueStick.verticalOffset.isNegative ? 1 : -1) * 50.0;
-        glueStick.hasScored = false;
-        // Also recycle collectibles
-        lionsManes[i] = LionsMane(
-          xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
-          yAlign: (glueStick.verticalOffset / (MediaQuery.of(context).size.height / 2)),
-          collected: false,
-        );
-        redPills[i] = RedPill(
-          xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
-          yAlign: (glueStick.verticalOffset / (MediaQuery.of(context).size.height / 2)),
-          collected: false,
-        );
-      }
-    }
-  }
-
-  // --- Collision Detection ---
-  bool checkCollision() {
+  // Make sure this method exists and is named with the underscore:
+  void _checkPortalCollision() {
+    if (!_portalVisible) return;
     final screenSize = MediaQuery.of(context).size;
-
-    // Bird's visual size in the game (scaled)
-    final birdWidth = 70.0 * 0.7;  // 49.0
-    final birdHeight = 70.0 * 0.7; // 49.0
-
-    // Shrink bird hitbox for tighter collision (e.g., 20% padding)
-    final birdHitboxPadding = 0.2; // 20% inset
-    final birdHitboxWidth = birdWidth * (1 - birdHitboxPadding);
-    final birdHitboxHeight = birdHeight * (1 - birdHitboxPadding);
-
     final birdCenterX = screenSize.width / 2;
     final birdCenterY = screenSize.height / 2 + birdY * (screenSize.height / 2);
-    final birdRect = Rect.fromCenter(
+    Rect birdRect = Rect.fromCenter(
       center: Offset(birdCenterX, birdCenterY),
-      width: birdHitboxWidth,
-      height: birdHitboxHeight,
+      width: 49 * 0.7,
+      height: 49 * 0.7,
     );
-
-    // Shrink glue stick hitbox horizontally (e.g., 15% inset)
-    final glueStickHitboxPadding = 0.15; // 15% inset
-    for (var glueStick in glueSticks) {
-      final stickX = glueStick.xPosition + glueStick.width * glueStickHitboxPadding / 2;
-      final stickWidth = glueStick.width * (1 - glueStickHitboxPadding);
-
-      // Top glue stick
-      final topRect = Rect.fromLTWH(
-        stickX,
-        0,
-        stickWidth,
-        screenSize.height / 2 + glueStick.verticalOffset - glueStick.gap / 2,
-      );
-      // Bottom glue stick
-      final bottomRect = Rect.fromLTWH(
-        stickX,
-        screenSize.height - (screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2),
-        stickWidth,
-        screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2,
-      );
-      if (birdRect.overlaps(topRect) || birdRect.overlaps(bottomRect)) {
-        return true;
-      }
+    Rect portalRect = Rect.fromCenter(
+      center: Offset(_portalX, _portalY),
+      width: _portalSize,
+      height: _portalSize,
+    );
+    if (birdRect.overlaps(portalRect)) {
+      setState(() {
+        _portalVisible = false;
+        _showPongMiniGame = true;
+        _pongMiniGameSwitchValue = true;
+      });
     }
-    return false;
-  }
-
-  void resetGame() {
-    setState(() {
-      birdY = 0;
-      velocity = 0;
-      gameHasStarted = false;
-      gameOver = false;
-      score = 0;
-      glueSticks.clear();
-      lionsManes.clear();
-      redPills.clear();
-      bitcoins.clear();
-      collectibleTypes.clear();
-      // lionsManeCollected, redPillCollected, bitcoinCollected are NOT reset here!
-    });
-  }
-  @override
-  void dispose() {
-    gameLoopTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    print('Building GameScreen');
-
-    Widget gameStack = Stack(
-      children: [
-        ScrollingBackground(
-          scrollSpeed: 80.0,
-        ),
-        // Glue sticks
-        ...glueSticks.map((glueStick) => glueStick.build(context)).toList(),
-        // Collectibles
-        if (redWhiteBlackFilter)
-          ...redPills.map((pill) => pill.build(context)).toList()
-        else
-          ...[
-            for (int i = 0; i < lionsManes.length; i++)
-              if (!bitcoins[i].collected && bitcoins[i].xPosition > 0)
-                bitcoins[i].build(context)
-              else
-                lionsManes[i].build(context)
-          ],
-        // Bird
-        Align(
-          alignment: Alignment(0, birdY),
-          child: Image.asset(
-            'assets/images/$currentBirdSkin',
-            width: 49,
-            height: 49,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                color: Colors.red,
-                child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-              );
-            },
-          ),
-        ),
-        // Collectibles display (show only while playing or game over, but not title screen)
-        if ((gameHasStarted || gameOver) && !showTitleScreen)
-          Positioned(
-            top: 48,
-            left: 0,
-            right: 0,
-            child: Row(
-                children: [
-                  // Lions Mane
-                  Image.asset(
-                    'assets/images/lions_mane.png',
-                    width: 28,
-                    height: 28,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.red,
-                        child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                      );
-                    },
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    '$lionsManeCollected',
-                    style: TextStyle(
-                      fontSize: 32,
-                      color: Colors.amber,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          offset: Offset(2, 2),
-                          blurRadius: 8,
-                          color: Colors.black54,
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: 18),
-                  // Red Pill
-                  Image.asset(
-                    'assets/images/red_pill.png',
-                    width: 28,
-                    height: 28,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.red,
-                        child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                      );
-                    },
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    '$redPillCollected',
-                    style: TextStyle(
-                      fontSize: 32,
-                      color: Colors.redAccent,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          offset: Offset(2, 2),
-                          blurRadius: 8,
-                          color: Colors.black54,
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: 18),
-                  // Bitcoin
-                  Image.asset(
-                    'assets/images/bitcoin.png',
-                    width: 28,
-                    height: 28,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.red,
-                        child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                      );
-                    },
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    '$bitcoinCollected',
-                    style: TextStyle(
-                      fontSize: 32,
-                      color: Colors.amber,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          offset: Offset(2, 2),
-                          blurRadius: 8,
-                          color: Colors.black54,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-          ),
-        // "Tap to Start" overlay
-        if (!gameHasStarted && !gameOver)
-          Center(
-            child: Text(
-              'TAP TO START',
-              style: TextStyle(
-                fontSize: 24,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        // Title screen overlay
-        if (showTitleScreen)
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/title_screen.png',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.red,
-                  child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                );
-              },
-            ),
-          ),
-      ],
-    );
-
-    // Apply color filter if enabled
-    if (redWhiteBlackFilter) {
-      gameStack = ColorFiltered(
-        colorFilter: const ColorFilter.matrix(<double>[
-          // Red channel
-          1, 0, 0, 0, 0,
-          // Green channel
-          0, 0, 0, 0, 0,
-          // Blue channel
-          0, 0, 0, 0, 0,
-          // Alpha channel,  0, 0, 0, 1, 0,
-          0, 0, 0, 1, 0,
-        ]),
-        child: gameStack,
-      );
-    }
-    return GestureDetector(
-      onTap: showTitleScreen
-          ? null
-          : (gameOver
-              ? () {
-                  if (canRestart) {
-                    resetGame();
-                    startGame();
-                  }
-                }
-              : onTap),
-      child: Scaffold(
-        body: Stack(
-          children: [
-            gameStack,
-            if (_showMiniGame)
-              CrashMiniGameScreen(
-                lionsManeCollected: lionsManeCollected,
-                redPillCollected: redPillCollected,
-                bitcoinCollected: bitcoinCollected,
-                onCollectibleChange: (collectible, delta) {
-                  setState(() {
-                    if (collectible == 'LionsMane') lionsManeCollected += delta;
-                    if (collectible == 'RedPill') redPillCollected += delta;
-                    if (collectible == 'Bitcoin') bitcoinCollected += delta;
-                  });
-                },
-                onClose: () {
-                  setState(() {
-                    _showMiniGame = false;
-                    _miniGameSwitchValue = false;
-                  });
-                },
-              ),
-            if (gameOver && !_showMiniGame)
-              Positioned.fill(
-                child: EndScreenOverlay(
-                  score: score,
-                  canRestart: canRestart,
-                  onShowRestart: () {
-                    setState(() {
-                      canRestart = true;
-                    });
-                  },
-                  onStartDelay: () {
-                    setState(() {
-                      canRestart = false;
-                    });
-                    Future.delayed(const Duration(seconds: 3), () {
-                      if (mounted && gameOver) {
-                        setState(() {
-                          canRestart = true;
-                        });
-                      }
-                    });
-                  },
-                  shopSwitchValue: _shopSwitchValue,
-                  redWhiteBlackFilter: redWhiteBlackFilter,
-                  miniGameSwitchValue: _miniGameSwitchValue,
-                  onRedModeChanged: (val) {
-                    setState(() {
-                      redWhiteBlackFilter = val;
-                    });
-                  },
-                  onShopSwitchChanged: (val) {
-                    if (val) {
-                      _openShop();
-                    } else {
-                      setState(() {
-                        _shopSwitchValue = false;
-                      });
-                    }
-                  },
-                  onMiniGameSwitchChanged: (val) {
-                    setState(() {
-                      _miniGameSwitchValue = val;
-                      _showMiniGame = val;
-                    });
-                  },
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Move this method inside the class
-  Future<void> _openShop() async {
-    setState(() {
-      _shopSwitchValue = false;
-    });
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ShopScreen(
-        lionsManeCollected: lionsManeCollected,
-        redPillCollected: redPillCollected,
-        bitcoinCollected: bitcoinCollected,
-        unlockedSkins: unlockedSkins,
-        currentBirdSkin: currentBirdSkin,
-        onUnlock: (skin, collectible) {
-          setState(() {
-            if (collectible == 'RedPill' && redPillCollected >= 10) {
-              redPillCollected -= 10;
-              unlockedSkins.add(skin);
-            } else if (collectible == 'LionsMane' && lionsManeCollected >= 10) {
-              lionsManeCollected -= 10;
-              unlockedSkins.add(skin);
-            } else if (collectible == 'Bitcoin' && bitcoinCollected >= 10) {
-              bitcoinCollected -= 10;
-              unlockedSkins.add(skin);
-            }
-          });
-        },
-        onEquip: (skin) {
-          setState(() {
-            currentBirdSkin = skin;
-          });
-        },
-      ),
-    ));
   }
 }
 
@@ -931,6 +1178,8 @@ class EndScreenOverlay extends StatefulWidget {
   final ValueChanged<bool> onRedModeChanged;
   final bool miniGameSwitchValue;
   final ValueChanged<bool> onMiniGameSwitchChanged;
+  final bool pongMiniGameSwitchValue;
+  final ValueChanged<bool> onPongMiniGameSwitchChanged;
 
   const EndScreenOverlay({
     Key? key,
@@ -944,6 +1193,8 @@ class EndScreenOverlay extends StatefulWidget {
     required this.onRedModeChanged,
     required this.miniGameSwitchValue,
     required this.onMiniGameSwitchChanged,
+    required this.pongMiniGameSwitchValue,
+    required this.onPongMiniGameSwitchChanged,
   }) : super(key: key);
 
   State<EndScreenOverlay> createState() => _EndScreenOverlayState();
@@ -1051,6 +1302,21 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
               value: widget.miniGameSwitchValue,
               onChanged: widget.onMiniGameSwitchChanged,
               activeColor: Colors.blue,
+              inactiveThumbColor: Colors.white,
+              inactiveTrackColor: Colors.grey,
+            ),
+          ),
+        ),
+        // Pong Mini-game Switch (bottom right)
+        Positioned(
+          right: 15,
+          bottom: 40,
+          child: RotatedBox(
+            quarterTurns: 1,
+            child: Switch(
+              value: widget.pongMiniGameSwitchValue,
+              onChanged: widget.onPongMiniGameSwitchChanged,
+              activeColor: Colors.purple,
               inactiveThumbColor: Colors.white,
               inactiveTrackColor: Colors.grey,
             ),
@@ -1174,6 +1440,163 @@ class _ScrollingBackgroundState extends State<ScrollingBackground> with SingleTi
           ],
         );
       },
+    );
+  }
+}
+
+class _TitleScreenContent extends StatefulWidget {
+  @override
+  State<_TitleScreenContent> createState() => _TitleScreenContentState();
+}
+
+class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  double birdY = 0.0;
+  double velocity = 0.0;
+  final double gravity = 0.007 * 0.5;
+  final double flapVelocity = -0.11;
+  final double maxFallSpeed = 0.035;
+  final double baseY = 0.0; // baseline for bird's Y position
+
+  // Flap 3 times per second as bird moves left to right
+  final int flapsPerSecond = 3;
+  late double flapInterval;
+  double lastFlapX = -1.2;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    )..repeat(reverse: false);
+    _animation = Tween<double>(begin: -1.2, end: 1.2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.linear),
+    );
+    // The total horizontal distance is 2.4 units (-1.2 to 1.2)
+    // So, for 3 flaps per second over 3 seconds, 9 flaps total
+    flapInterval = 2.4 / (flapsPerSecond * 3);
+    birdY = baseY;
+    velocity = 0.0;
+    lastFlapX = -1.2;
+    _controller.addListener(() {
+      setState(() {
+        double x = _animation.value;
+        // Flap if we've moved enough horizontally
+        if (x - lastFlapX >= flapInterval) {
+          velocity = flapVelocity;
+          lastFlapX = x;
+        }
+        velocity += gravity;
+        if (velocity > maxFallSpeed) velocity = maxFallSpeed;
+        birdY += velocity;
+        // Clamp Y so it doesn't go off the visible area
+        if (birdY > 0.25) birdY = 0.25;
+        if (birdY < -0.25) birdY = -0.25;
+      });
+    });
+    // Optionally, reset bird position at the start of each animation cycle
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        birdY = baseY;
+        velocity = 0.0;
+        lastFlapX = -1.2;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final birdSize = screenWidth * 0.18;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'Flappy',
+          style: TextStyle(
+            fontFamily: 'FlappyBirdy',
+            fontSize: 84,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2,
+            shadows: [
+              Shadow(
+                offset: Offset(2, 2),
+                blurRadius: 8,
+                color: Colors.black54,
+              ),
+            ],
+          ),
+        ),
+        Text(
+          'Poet',
+          style: TextStyle(
+            fontFamily: 'FlappyBirdy',
+            fontSize: 84,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2,
+            shadows: [
+              Shadow(
+                offset: Offset(2, 2),
+                blurRadius: 8,
+                color: Colors.black54,
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 60,
+          child: AnimatedBuilder(
+            animation: _animation,
+            builder: (context, child) {
+              return Align(
+                alignment: Alignment(_animation.value, birdY),
+                child: Image.asset(
+                  'assets/images/bird.png',
+                  width: birdSize,
+                  height: birdSize,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Icon(Icons.error, color: Colors.red, size: birdSize);
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+        SizedBox(height: 24),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Text(
+            'help the poet\nescape the matrix',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'FlappyBirdy',
+              fontSize: 30.8,
+              color: Colors.yellowAccent,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 1,
+              height: 1.2,
+              shadows: [
+                Shadow(
+                  offset: Offset(1, 1),
+                  blurRadius: 4,
+                  color: Colors.black54,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

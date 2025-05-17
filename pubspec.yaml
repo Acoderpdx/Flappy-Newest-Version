@@ -35,3 +35,8 @@ flutter:
     - assets/images/red_pill.png
     - assets/images/tate_bird.png
     - assets/images/title_screen.png
+    - assets/images/portal.png
+  fonts:
+    - family: Flappybirdy
+      fonts:
+        - asset: assets/fonts/FlappybirdyRegular-KaBW.ttf
