@@ -1269,38 +1269,74 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
             ),
           ),
         ),
-        // Red/White/Black Filter Switch (right side)
+        // Red/White/Black Filter Toggle (Red Pill image, right side)
         Positioned(
           right: 15,
           top: 0,
           bottom: 0,
           child: Center(
-            child: RotatedBox(
-              quarterTurns: 1,
-              child: Switch(
-                value: widget.redWhiteBlackFilter,
-                onChanged: widget.onRedModeChanged,
-                activeColor: Colors.red,
-                inactiveThumbColor: Colors.white,
-                inactiveTrackColor: Colors.black,
+            child: GestureDetector(
+              onTap: () => widget.onRedModeChanged(!widget.redWhiteBlackFilter),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: widget.redWhiteBlackFilter ? Colors.green : Colors.transparent,
+                    width: 4,
+                  ),
+                  boxShadow: [
+                    if (widget.redWhiteBlackFilter)
+                      BoxShadow(
+                        color: Colors.green.withOpacity(0.5),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(6),
+                child: Image.asset(
+                  'assets/images/red_pill.png',
+                  width: 38,
+                  height: 38,
+                  errorBuilder: (context, error, stackTrace) =>
+                      Icon(Icons.medication, color: Colors.red, size: 38),
+                ),
               ),
             ),
           ),
         ),
-        // Matrix Shop Switch (left side, identical style)
+        // Matrix Shop Button (left side, bitcoin image)
         Positioned(
           left: 15,
           top: 0,
           bottom: 0,
           child: Center(
-            child: RotatedBox(
-              quarterTurns: 1,
-              child: Switch(
-                value: widget.shopSwitchValue,
-                onChanged: widget.onShopSwitchChanged,
-                activeColor: Colors.green,
-                inactiveThumbColor: Colors.white,
-                inactiveTrackColor: Colors.black,
+            child: GestureDetector(
+              onTap: () => widget.onShopSwitchChanged(true),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: widget.shopSwitchValue ? Colors.green : Colors.transparent,
+                    width: 4,
+                  ),
+                  boxShadow: [
+                    if (widget.shopSwitchValue)
+                      BoxShadow(
+                        color: Colors.green.withOpacity(0.5),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(6),
+                child: Image.asset(
+                  'assets/images/bitcoin.png',
+                  width: 38,
+                  height: 38,
+                  errorBuilder: (context, error, stackTrace) =>
+                      Icon(Icons.currency_bitcoin, color: Colors.amber, size: 38),
+                ),
               ),
             ),
           ),
