@@ -783,38 +783,39 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) {
     print('Building GameScreen');
 
-    // --- Cash Out Switch: exactly matches bitcoin shop button position (left: 15, vertically centered) ---
-    Widget cashOutSwitch = SizedBox.shrink();
+    // --- Red Mode Cash Out Button: bitcoin.png image at far left, same position as shop button on end screen ---
+    Widget cashOutButton = SizedBox.shrink();
     if (redWhiteBlackFilter && gameHasStarted && !gameOver && !_redModeCashedOut) {
-      cashOutSwitch = Positioned(
+      cashOutButton = Positioned(
         left: 15,
         top: 0,
         bottom: 0,
         child: Center(
-          child: RotatedBox(
-            quarterTurns: 3, // 270 degrees, vertical orientation
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Switch(
-                  value: false,
-                  onChanged: (val) {
-                    if (val) _handleRedModeCashOut();
-                  },
-                  activeColor: Colors.green,
-                  inactiveThumbColor: Colors.white,
-                  inactiveTrackColor: Colors.grey,
+          child: GestureDetector(
+            onTap: _handleRedModeCashOut,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.greenAccent,
+                  width: 4,
                 ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Cash Out',
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: Colors.greenAccent,
-                    fontWeight: FontWeight.bold,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.green.withOpacity(0.5),
+                    blurRadius: 12,
+                    spreadRadius: 2,
                   ),
-                ),
-              ],
+                ],
+              ),
+              padding: const EdgeInsets.all(6),
+              child: Image.asset(
+                'assets/images/bitcoin.png',
+                width: 38,
+                height: 38,
+                errorBuilder: (context, error, stackTrace) =>
+                    Icon(Icons.currency_bitcoin, color: Colors.amber, size: 38),
+              ),
             ),
           ),
         ),
@@ -980,10 +981,13 @@ class _GameScreenState extends State<GameScreen> {
                 ),
                 // --- Red Mode Cash Out Switch ---
                 if (redWhiteBlackFilter && gameHasStarted && !gameOver && !_redModeCashedOut)
-                  cashOutSwitch,
+                  SizedBox(height: 60), // Add spacing so collectibles row doesn't overlap with center cashout
               ],
             ),
           ),
+        // --- Red Mode Cash Out Button (bitcoin image at far left) ---
+        if (redWhiteBlackFilter && gameHasStarted && !gameOver && !_redModeCashedOut)
+          cashOutButton,
         // "Tap to Start" overlay
         if (!gameHasStarted && !gameOver)
           Center(
