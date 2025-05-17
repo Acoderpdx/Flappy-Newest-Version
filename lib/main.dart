@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'shop_screen.dart'; // (Make sure this import is present)
 import 'crash_mini_game.dart';
 import 'pong_mini_game.dart'; // <-- Add this import
+import 'ball_blast_mini_game.dart';
 import 'dart:math'; // <-- Add this import
 import 'dart:io'; // <-- Add this import
 
@@ -255,6 +256,8 @@ class _GameScreenState extends State<GameScreen> {
   bool _showMiniGame = false;
   bool _pongMiniGameSwitchValue = false;
   bool _showPongMiniGame = false;
+  bool _ballBlastMiniGameSwitchValue = false;
+  bool _showBallBlastMiniGame = false;
 
   // --- ROTATION STATE ---
   double birdAngle = 0.0; // Radians, for smooth rotation
@@ -970,7 +973,16 @@ class _GameScreenState extends State<GameScreen> {
                   });
                 },
               ),
-            if (gameOver && !_showMiniGame && !_showPongMiniGame)
+            if (_showBallBlastMiniGame)
+              BallBlastMiniGameScreen(
+                onClose: () {
+                  setState(() {
+                    _showBallBlastMiniGame = false;
+                    _ballBlastMiniGameSwitchValue = false;
+                  });
+                },
+              ),
+            if (gameOver && !_showMiniGame && !_showPongMiniGame && !_showBallBlastMiniGame)
               Positioned.fill(
                 child: EndScreenOverlay(
                   score: score,
@@ -995,6 +1007,7 @@ class _GameScreenState extends State<GameScreen> {
                   shopSwitchValue: _shopSwitchValue,
                   redWhiteBlackFilter: redWhiteBlackFilter,
                   miniGameSwitchValue: _miniGameSwitchValue,
+                  ballBlastMiniGameSwitchValue: _ballBlastMiniGameSwitchValue,
                   onRedModeChanged: (val) {
                     setState(() {
                       redWhiteBlackFilter = val;
@@ -1013,6 +1026,12 @@ class _GameScreenState extends State<GameScreen> {
                     setState(() {
                       _miniGameSwitchValue = val;
                       _showMiniGame = val;
+                    });
+                  },
+                  onBallBlastMiniGameSwitchChanged: (val) {
+                    setState(() {
+                      _ballBlastMiniGameSwitchValue = val;
+                      _showBallBlastMiniGame = val;
                     });
                   },
                 ),
@@ -1195,6 +1214,8 @@ class EndScreenOverlay extends StatefulWidget {
   final ValueChanged<bool> onRedModeChanged;
   final bool miniGameSwitchValue;
   final ValueChanged<bool> onMiniGameSwitchChanged;
+  final bool ballBlastMiniGameSwitchValue;
+  final ValueChanged<bool> onBallBlastMiniGameSwitchChanged;
 
   const EndScreenOverlay({
     Key? key,
@@ -1208,6 +1229,8 @@ class EndScreenOverlay extends StatefulWidget {
     required this.onRedModeChanged,
     required this.miniGameSwitchValue,
     required this.onMiniGameSwitchChanged,
+    required this.ballBlastMiniGameSwitchValue,
+    required this.onBallBlastMiniGameSwitchChanged,
   }) : super(key: key);
 
   State<EndScreenOverlay> createState() => _EndScreenOverlayState();
@@ -1351,6 +1374,21 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
               value: widget.miniGameSwitchValue,
               onChanged: widget.onMiniGameSwitchChanged,
               activeColor: Colors.blue,
+              inactiveThumbColor: Colors.white,
+              inactiveTrackColor: Colors.grey,
+            ),
+          ),
+        ),
+        // Ball Blast Mini-game Switch (bottom right)
+        Positioned(
+          right: 15,
+          bottom: 40,
+          child: RotatedBox(
+            quarterTurns: 1,
+            child: Switch(
+              value: widget.ballBlastMiniGameSwitchValue,
+              onChanged: widget.onBallBlastMiniGameSwitchChanged,
+              activeColor: Colors.deepPurple,
               inactiveThumbColor: Colors.white,
               inactiveTrackColor: Colors.grey,
             ),

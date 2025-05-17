@@ -207,6 +207,7 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
       body: LayoutBuilder(
         builder: (context, constraints) {
           return GestureDetector(
+            // Use onHorizontalDragUpdate so paddle always tracks finger/mouse
             onHorizontalDragUpdate: (details) => _onHorizontalDragUpdate(details, constraints),
             child: Stack(
               children: [
