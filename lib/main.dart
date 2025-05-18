@@ -7,6 +7,7 @@ import 'pong_mini_game.dart'; // <-- Add this import
 import 'ball_blast_mini_game.dart';
 import 'dart:math'; // <-- Add this import
 import 'dart:io'; // <-- Add this import
+import 'portfolio_screen.dart';
 
 void main() {
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -282,6 +283,15 @@ class _GameScreenState extends State<GameScreen> {
   bool _redModeCashOutEnabled = false; // Show cash out switch in red mode
   bool _redModeCashedOut = false;      // Track if player cashed out
   int _redModeCashedOutRedPills = 0;   // Amount cashed out
+
+  // --- Add PnL history tracking ---
+  List<double> lionsManePnlHistory = [0];
+  List<double> redPillPnlHistory = [0];
+  List<double> bitcoinPnlHistory = [0];
+  List<double> totalWealthHistory = [0];
+
+  // Add this field if missing:
+  bool _portfolioSwitchValue = false;
 
   @override
   void initState() {
@@ -822,6 +832,29 @@ class _GameScreenState extends State<GameScreen> {
       );
     }
 
+    Widget portfolioButton = Positioned(
+      right: 15,
+      bottom: 100,
+      child: FloatingActionButton(
+        heroTag: 'portfolio',
+        backgroundColor: Colors.green,
+        child: Icon(Icons.account_balance_wallet, color: Colors.white),
+        onPressed: () {
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => PortfolioScreen(
+              lionsManeCollected: lionsManeCollected,
+              redPillCollected: redPillCollected,
+              bitcoinCollected: bitcoinCollected,
+              lionsManePnlHistory: lionsManePnlHistory,
+              redPillPnlHistory: redPillPnlHistory,
+              bitcoinPnlHistory: bitcoinPnlHistory,
+              totalWealthHistory: totalWealthHistory,
+            ),
+          ));
+        },
+      ),
+    );
+
     Widget gameStack = Stack(
       children: [
         ScrollingBackground(
@@ -1066,6 +1099,7 @@ class _GameScreenState extends State<GameScreen> {
                     if (collectible == 'LionsMane') lionsManeCollected += delta;
                     if (collectible == 'RedPill') redPillCollected += delta;
                     if (collectible == 'Bitcoin') bitcoinCollected += delta;
+                    _updatePnlHistory(); // <-- Add this
                   });
                 },
                 onClose: () {
@@ -1086,6 +1120,7 @@ class _GameScreenState extends State<GameScreen> {
                 onBitcoinCollected: () {
                   setState(() {
                     bitcoinCollected += 1;
+                    _updatePnlHistory(); // <-- Add this
                   });
                 },
               ),
@@ -1100,10 +1135,26 @@ class _GameScreenState extends State<GameScreen> {
                 onBitcoinCollected: () {
                   setState(() {
                     bitcoinCollected += 1;
+                    _updatePnlHistory(); // <-- Add this
                   });
                 },
               ),
-            if (gameOver && !_showMiniGame && !_showPongMiniGame && !_showBallBlastMiniGame)
+            if (_portfolioSwitchValue)
+              PortfolioScreen(
+                lionsManeCollected: lionsManeCollected,
+                redPillCollected: redPillCollected,
+                bitcoinCollected: bitcoinCollected,
+                lionsManePnlHistory: lionsManePnlHistory,
+                redPillPnlHistory: redPillPnlHistory,
+                bitcoinPnlHistory: bitcoinPnlHistory,
+                totalWealthHistory: totalWealthHistory,
+                onClose: () {
+                  setState(() {
+                    _portfolioSwitchValue = false;
+                  });
+                },
+              ),
+            if (gameOver && !_showMiniGame && !_showPongMiniGame && !_showBallBlastMiniGame && !_portfolioSwitchValue)
               Positioned.fill(
                 child: EndScreenOverlay(
                   score: score,
@@ -1155,6 +1206,13 @@ class _GameScreenState extends State<GameScreen> {
                       _showBallBlastMiniGame = val;
                     });
                   },
+                  // --- Add portfolio switch wiring ---
+                  portfolioSwitchValue: _portfolioSwitchValue,
+                  onPortfolioSwitchChanged: (val) {
+                    setState(() {
+                      _portfolioSwitchValue = val;
+                    });
+                  },
                 ),
               ),
           ],
@@ -1180,12 +1238,15 @@ class _GameScreenState extends State<GameScreen> {
             if (collectible == 'RedPill' && redPillCollected >= 10) {
               redPillCollected -= 10;
               unlockedSkins.add(skin);
+              _updatePnlHistory(); // <-- Add this
             } else if (collectible == 'LionsMane' && lionsManeCollected >= 10) {
               lionsManeCollected -= 10;
               unlockedSkins.add(skin);
+              _updatePnlHistory(); // <-- Add this
             } else if (collectible == 'Bitcoin' && bitcoinCollected >= 10) {
               bitcoinCollected -= 10;
               unlockedSkins.add(skin);
+              _updatePnlHistory(); // <-- Add this
             }
           });
         },
@@ -1229,6 +1290,7 @@ class _GameScreenState extends State<GameScreen> {
           setState(() {
             redPill.collected = true;
             redPillCollected += 1;
+            _updatePnlHistory(); // <-- Add this
           });
         }
       }
@@ -1246,6 +1308,7 @@ class _GameScreenState extends State<GameScreen> {
             setState(() {
               lionsManes[i].collected = true;
               lionsManeCollected += 1;
+              _updatePnlHistory(); // <-- Add this
             });
           }
         }
@@ -1262,6 +1325,7 @@ class _GameScreenState extends State<GameScreen> {
             setState(() {
               bitcoins[i].collected = true;
               bitcoinCollected += 1;
+              _updatePnlHistory(); // <-- Add this
             });
           }
         }
@@ -1326,6 +1390,16 @@ class _GameScreenState extends State<GameScreen> {
       velocity = -flapHeight * pixelToAlignRatio;
     });
   }
+
+  // --- Add PnL history tracking ---
+  void _updatePnlHistory() {
+    lionsManePnlHistory.add(lionsManeCollected.toDouble());
+    redPillPnlHistory.add(redPillCollected.toDouble());
+    bitcoinPnlHistory.add(bitcoinCollected.toDouble());
+    totalWealthHistory.add(
+      lionsManeCollected.toDouble() + redPillCollected.toDouble() + bitcoinCollected.toDouble()
+    );
+  }
 }
 
 class EndScreenOverlay extends StatefulWidget {
@@ -1341,6 +1415,9 @@ class EndScreenOverlay extends StatefulWidget {
   final ValueChanged<bool> onMiniGameSwitchChanged;
   final bool ballBlastMiniGameSwitchValue;
   final ValueChanged<bool> onBallBlastMiniGameSwitchChanged;
+  // --- Add portfolio switch value and callback ---
+  final bool portfolioSwitchValue;
+  final ValueChanged<bool> onPortfolioSwitchChanged;
 
   const EndScreenOverlay({
     Key? key,
@@ -1356,6 +1433,9 @@ class EndScreenOverlay extends StatefulWidget {
     required this.onMiniGameSwitchChanged,
     required this.ballBlastMiniGameSwitchValue,
     required this.onBallBlastMiniGameSwitchChanged,
+    // --- Add portfolio switch value and callback ---
+    required this.portfolioSwitchValue,
+    required this.onPortfolioSwitchChanged,
   }) : super(key: key);
 
   State<EndScreenOverlay> createState() => _EndScreenOverlayState();
@@ -1381,9 +1461,14 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
     return Stack(
       fit: StackFit.expand,
       children: [
+        // --- Scrolling background under everything ---
+        Positioned.fill(
+          child: ScrollingBackground(scrollSpeed: 80.0),
+        ),
+        // --- End screen overlay image (tate_endscreen.png) ---
         Positioned.fill(
           child: Image.asset(
-            'assets/images/end_screen.png',
+            'assets/images/tate_endscreen.png',
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
               return Container(
@@ -1393,6 +1478,7 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
             },
           ),
         ),
+        // --- All the collectible/mini-game/shop buttons and overlays ---
         // Score number only, centered in top 60 pixels
         Positioned(
           top: 0,
@@ -1555,25 +1641,90 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
             ),
           ),
         ),
-        // Only show restart hint/button after delay
-        if (widget.canRestart)
-          Center(
-            child: Text(
-              'Tap to Restart',
-              style: TextStyle(
-                fontSize: 28,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                shadows: [
-                  Shadow(
-                    offset: Offset(2, 2),
-                    blurRadius: 8,
-                    color: Colors.black54,
+        // --- Game Over Text (move up slightly) ---
+        Positioned(
+          top: MediaQuery.of(context).size.height * 0.19, // was 0.25, now higher
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Column(
+              children: [
+                Text(
+                  'Game Over\nYou are not a lion',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Flappybirdy',
+                    fontSize: 54,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(2, 2),
+                        blurRadius: 8,
+                        color: Colors.black54,
+                      ),
+                    ],
                   ),
-                ],
+                ),
+                // --- Tap to Restart text, now directly under Game Over text ---
+                if (widget.canRestart)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 18.0),
+                    child: Text(
+                      'Tap to Restart',
+                      style: TextStyle(
+                        fontSize: 28,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(2, 2),
+                            blurRadius: 8,
+                            color: Colors.black54,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        // --- Portfolio Switch (center bottom, wallet icon) ---
+        Positioned(
+          bottom: 40,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: GestureDetector(
+              onTap: () => widget.onPortfolioSwitchChanged(!widget.portfolioSwitchValue),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: widget.portfolioSwitchValue ? Colors.green : Colors.transparent,
+                    width: 4,
+                  ),
+                  boxShadow: [
+                    if (widget.portfolioSwitchValue)
+                      BoxShadow(
+                        color: Colors.green.withOpacity(0.5),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(6),
+                child: Icon(
+                  Icons.account_balance_wallet,
+                  color: Colors.white,
+                  size: 38,
+                ),
               ),
             ),
           ),
+        ),
+        // ...existing code...
       ],
     );
   }

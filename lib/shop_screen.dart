@@ -25,11 +25,20 @@ class ShopScreen extends StatefulWidget {
 
 class _ShopScreenState extends State<ShopScreen> {
   late String _selectedSkin;
+  late Set<String> _unlockedSkins;
 
   @override
   void initState() {
     super.initState();
     _selectedSkin = widget.currentBirdSkin;
+    _unlockedSkins = Set<String>.from(widget.unlockedSkins);
+  }
+
+  void _handleUnlock(String filename, String collectible) {
+    widget.onUnlock(filename, collectible);
+    setState(() {
+      _unlockedSkins.add(filename);
+    });
   }
 
   @override
@@ -70,7 +79,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: skins.map((skin) {
                   final filename = skin['filename'] as String;
-                  final unlocked = widget.unlockedSkins.contains(filename);
+                  final unlocked = _unlockedSkins.contains(filename);
                   final canUnlock = skin['count'] as int >= 10;
                   Widget skinImage = Image.asset(
                     skin['asset'] as String,
@@ -88,7 +97,7 @@ class _ShopScreenState extends State<ShopScreen> {
                         SizedBox(width: 24),
                         if (!unlocked && canUnlock)
                           ElevatedButton(
-                            onPressed: () => widget.onUnlock(filename, skin['collectible'] as String),
+                            onPressed: () => _handleUnlock(filename, skin['collectible'] as String),
                             child: Text('Unlock'),
                           ),
                         if (unlocked)

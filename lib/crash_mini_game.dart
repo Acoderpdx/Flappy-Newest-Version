@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'main.dart'; // <-- Add this import for ScrollingBackground
 
 enum CrashGamePhase { waiting, running, crashed, cashedOut }
 
@@ -178,134 +179,143 @@ class _CrashMiniGameScreenState extends State<CrashMiniGameScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 24),
-            // --- Bustabit-style Graph ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
-              child: SizedBox(
-                height: 200,
-                child: CrashGraph(
-                  points: _graphPoints,
-                  crashMultiplier: phase == CrashGamePhase.crashed ? multiplier : null,
-                  cashedOutMultiplier: phase == CrashGamePhase.cashedOut ? multiplier : null,
-                ),
-              ),
-            ),
-            Center(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Text(
-                  '${multiplier.toStringAsFixed(2)}x',
-                  key: ValueKey(multiplier),
-                  style: TextStyle(
-                    fontSize: 56,
-                    fontWeight: FontWeight.bold,
-                    color: phase == CrashGamePhase.crashed
-                        ? Colors.red
-                        : (phase == CrashGamePhase.cashedOut ? Colors.green : Colors.white),
-                  ),
-                ),
-              ),
-            ),
-            // --- Balance display ---
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      body: Stack(
+        children: [
+          // --- Add scrolling background ---
+          Positioned.fill(
+            child: ScrollingBackground(scrollSpeed: 80.0),
+          ),
+          // --- Main content ---
+          SafeArea(
+            child: Column(
               children: [
-                _balanceIcon('assets/images/lions_mane.png', lionsManeBalance, Colors.amber),
-                const SizedBox(width: 18),
-                _balanceIcon('assets/images/red_pill.png', redPillBalance, Colors.redAccent),
-                const SizedBox(width: 18),
-                _balanceIcon('assets/images/bitcoin.png', bitcoinBalance, Colors.amber),
-              ],
-            ),
-            // --- End balance display ---
-            const SizedBox(height: 16),
-            if (phase == CrashGamePhase.waiting)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  DropdownButton<String>(
-                    value: selectedCollectible,
-                    dropdownColor: Colors.grey[900],
-                    style: const TextStyle(color: Colors.white),
-                    items: collectibles.map((c) {
-                      return DropdownMenuItem(
-                        value: c,
-                        child: Text('$c (${getMaxWager()})'),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => selectedCollectible = val);
-                    },
+                const SizedBox(height: 24),
+                // --- Bustabit-style Graph ---
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+                  child: SizedBox(
+                    height: 200,
+                    child: CrashGraph(
+                      points: _graphPoints,
+                      crashMultiplier: phase == CrashGamePhase.crashed ? multiplier : null,
+                      cashedOutMultiplier: phase == CrashGamePhase.cashedOut ? multiplier : null,
+                    ),
                   ),
-                  const SizedBox(width: 16),
-                  SizedBox(
-                    width: 80,
-                    child: TextField(
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        labelText: 'Wager',
-                        labelStyle: TextStyle(color: Colors.white),
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white),
+                ),
+                Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Text(
+                      '${multiplier.toStringAsFixed(2)}x',
+                      key: ValueKey(multiplier),
+                      style: TextStyle(
+                        fontSize: 56,
+                        fontWeight: FontWeight.bold,
+                        color: phase == CrashGamePhase.crashed
+                            ? Colors.red
+                            : (phase == CrashGamePhase.cashedOut ? Colors.green : Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+                // --- Balance display ---
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _balanceIcon('assets/images/lions_mane.png', lionsManeBalance, Colors.amber),
+                    const SizedBox(width: 18),
+                    _balanceIcon('assets/images/red_pill.png', redPillBalance, Colors.redAccent),
+                    const SizedBox(width: 18),
+                    _balanceIcon('assets/images/bitcoin.png', bitcoinBalance, Colors.amber),
+                  ],
+                ),
+                // --- End balance display ---
+                const SizedBox(height: 16),
+                if (phase == CrashGamePhase.waiting)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      DropdownButton<String>(
+                        value: selectedCollectible,
+                        dropdownColor: Colors.grey[900],
+                        style: const TextStyle(color: Colors.white),
+                        items: collectibles.map((c) {
+                          return DropdownMenuItem(
+                            value: c,
+                            child: Text('$c (${getMaxWager()})'),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => selectedCollectible = val);
+                        },
+                      ),
+                      const SizedBox(width: 16),
+                      SizedBox(
+                        width: 80,
+                        child: TextField(
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            labelText: 'Wager',
+                            labelStyle: TextStyle(color: Colors.white),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white),
+                            ),
+                          ),
+                          onChanged: (val) {
+                            final n = int.tryParse(val) ?? 1;
+                            setState(() => wager = n.clamp(1, getMaxWager()));
+                          },
+                          controller: TextEditingController(text: wager.toString()),
                         ),
                       ),
-                      onChanged: (val) {
-                        final n = int.tryParse(val) ?? 1;
-                        setState(() => wager = n.clamp(1, getMaxWager()));
-                      },
-                      controller: TextEditingController(text: wager.toString()),
-                    ),
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: canPlay ? startGame : null,
+                        child: const Text('Start'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
+                if (phase == CrashGamePhase.running)
                   ElevatedButton(
-                    onPressed: canPlay ? startGame : null,
-                    child: const Text('Start'),
+                    onPressed: cashOut,
+                    child: const Text('Cash Out'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                   ),
-                ],
-              ),
-            if (phase == CrashGamePhase.running)
-              ElevatedButton(
-                onPressed: cashOut,
-                child: const Text('Cash Out'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              ),
-            if (phase == CrashGamePhase.crashed)
-              Text('Crashed!', style: TextStyle(color: Colors.red, fontSize: 24)),
-            if (phase == CrashGamePhase.cashedOut)
-              Text('Cashed Out!', style: TextStyle(color: Colors.green, fontSize: 24)),
-            if (phase == CrashGamePhase.crashed || phase == CrashGamePhase.cashedOut)
-              ElevatedButton(
-                onPressed: resetGame,
-                child: const Text('Play Again'),
-              ),
-            const SizedBox(height: 32),
-            Text('Past Results', style: TextStyle(color: Colors.white, fontSize: 18)),
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: pastResults.take(12).map((r) {
-                  Color color = r >= 2.0
-                      ? Colors.green
-                      : (r >= 1.5 ? Colors.orange : Colors.red);
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6.0),
-                    child: Text(
-                      '${r.toStringAsFixed(2)}x',
-                      style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18),
-                    ),
-                  );
-                }).toList(),
-              ),
+                if (phase == CrashGamePhase.crashed)
+                  Text('Crashed!', style: TextStyle(color: Colors.red, fontSize: 24)),
+                if (phase == CrashGamePhase.cashedOut)
+                  Text('Cashed Out!', style: TextStyle(color: Colors.green, fontSize: 24)),
+                if (phase == CrashGamePhase.crashed || phase == CrashGamePhase.cashedOut)
+                  ElevatedButton(
+                    onPressed: resetGame,
+                    child: const Text('Play Again'),
+                  ),
+                const SizedBox(height: 32),
+                Text('Past Results', style: TextStyle(color: Colors.white, fontSize: 18)),
+                SizedBox(
+                  height: 40,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: pastResults.take(12).map((r) {
+                      Color color = r >= 2.0
+                          ? Colors.green
+                          : (r >= 1.5 ? Colors.orange : Colors.red);
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                        child: Text(
+                          '${r.toStringAsFixed(2)}x',
+                          style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

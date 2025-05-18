@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
+import 'main.dart'; // <-- Add this import for ScrollingBackground
 
 class PongMiniGameScreen extends StatefulWidget {
   final VoidCallback? onClose;
@@ -20,7 +21,7 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
   double aiPaddleX = 0.0;
   int playerScore = 0;
   int aiScore = 0;
-  int lives = 3; // <-- Add lives
+  int lives = 3;
   late Timer _timer;
   final double paddleWidth = 0.34;
   final double paddleHeight = 0.055;
@@ -33,10 +34,6 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
   double bitcoinY = 0.0;
   final double bitcoinSize = 0.10;
   int bitcoinCollected = 0;
-
-  // --- Add for falling bitcoin ---
-  bool bitcoinFalling = false;
-  double bitcoinVY = 0.0;
 
   @override
   void initState() {
@@ -56,10 +53,9 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
     playerScore = 0;
     aiScore = 0;
     bitcoinCollected = 0;
-    lives = 3; // <-- Reset lives
+    lives = 3;
     gameOver = false;
-    bitcoinFalling = false;
-    bitcoinVY = 0.0;
+    bitcoinVisible = false;
     _spawnBitcoin();
     _timer = Timer.periodic(const Duration(milliseconds: 14), (_) => _update());
   }
@@ -77,7 +73,7 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
 
       // --- AI paddle (top) follows ball, but with a delay and limited speed ---
       double aiTarget = ballX;
-      double aiSpeed = 0.055 + (aiScore + playerScore) * 0.008; // Easier: slower AI (was 0.09)
+      double aiSpeed = 0.055 + (aiScore + playerScore) * 0.008;
       if (aiPaddleX < aiTarget) {
         aiPaddleX += aiSpeed;
         if (aiPaddleX > aiTarget) aiPaddleX = aiTarget;
@@ -95,6 +91,7 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
         ballY = 1 - paddleHeight - ballSize / 2;
         ballVY = -ballVY * 1.07;
         ballVX += (Random().nextDouble() - 0.5) * 0.03;
+        _maybeSpawnBitcoin();
       }
 
       // --- AI paddle collision (top) ---
@@ -105,6 +102,7 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
         ballY = -1 + paddleHeight + ballSize / 2;
         ballVY = -ballVY * 1.07;
         ballVX += (Random().nextDouble() - 0.5) * 0.03;
+        _maybeSpawnBitcoin();
       }
 
       // --- Score and lives logic ---
@@ -114,11 +112,10 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
         _maybeSpawnBitcoin();
       } else if (ballY > 1.1) {
         aiScore += 1;
-        lives -= 1; // <-- Lose a life
+        lives -= 1;
         if (lives <= 0) {
           gameOver = true;
           _timer.cancel();
-          // Auto-return to end screen after short delay
           Future.delayed(const Duration(milliseconds: 1200), () {
             if (widget.onClose != null) widget.onClose!();
           });
@@ -128,28 +125,12 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
         }
       }
 
-      // --- Bitcoin falling logic ---
-      if (bitcoinVisible && bitcoinFalling) {
-        bitcoinVY += 0.012; // gravity
-        bitcoinY += bitcoinVY;
-        // Bounce off floor
-        if (bitcoinY + bitcoinSize > 1) {
-          bitcoinY = 1 - bitcoinSize;
-          bitcoinVY = -bitcoinVY * 0.5;
-          if (bitcoinVY.abs() < 0.01) bitcoinVY = 0;
-        }
-        // Clamp X
-        if (bitcoinX < -1 + bitcoinSize / 2) bitcoinX = -1 + bitcoinSize / 2;
-        if (bitcoinX > 1 - bitcoinSize / 2) bitcoinX = 1 - bitcoinSize / 2;
-      }
-
-      // --- Bitcoin collision with player paddle (bird.png) ---
-      if (bitcoinVisible && _bitcoinHitsBird()) {
+      // --- Bitcoin collision with ball ---
+      if (bitcoinVisible && _ballHitsBitcoin()) {
         bitcoinVisible = false;
-        bitcoinFalling = false;
         bitcoinCollected += 1;
         if (widget.onBitcoinCollected != null) widget.onBitcoinCollected!();
-        Future.delayed(const Duration(milliseconds: 600), _spawnBitcoin);
+        // Next bitcoin will spawn on next paddle hit or point
       }
 
       // --- End game at 7 points (still show overlay if player wins) ---
@@ -169,55 +150,27 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
     ballVY = speed * sin(angle);
   }
 
-  // --- Helper: check if bitcoin overlaps with bird.png (player paddle) ---
-  bool _bitcoinHitsBird() {
-    // Bird (player paddle) is at bottom: Alignment(playerPaddleX, 1)
-    // Bitcoin: Alignment(bitcoinX, bitcoinY)
-    // Both are rendered as squares, so use simple AABB collision
-
-    // Bird (player paddle) rectangle
-    double paddleLeft = playerPaddleX - paddleWidth / 2;
-    double paddleRight = playerPaddleX + paddleWidth / 2;
-    double paddleTop = 1 - paddleHeight;
-    double paddleBottom = 1;
-
-    // Bitcoin rectangle
-    double btcLeft = bitcoinX - bitcoinSize / 2;
-    double btcRight = bitcoinX + bitcoinSize / 2;
-    double btcTop = bitcoinY - bitcoinSize / 2;
-    double btcBottom = bitcoinY + bitcoinSize / 2;
-
-    bool overlap = !(btcRight < paddleLeft ||
-        btcLeft > paddleRight ||
-        btcBottom < paddleTop ||
-        btcTop > paddleBottom);
-
-    return overlap;
+  // --- Helper: check if ball overlaps with bitcoin (circle collision) ---
+  bool _ballHitsBitcoin() {
+    double dx = ballX - bitcoinX;
+    double dy = ballY - bitcoinY;
+    double dist = sqrt(dx * dx + dy * dy);
+    return bitcoinVisible && dist < (ballSize + bitcoinSize) / 2;
   }
 
   void _spawnBitcoin() {
     setState(() {
       bitcoinX = (Random().nextDouble() * 1.6 - 0.8); // -0.8 to 0.8
-      bitcoinY = -1 + bitcoinSize / 2; // Start at top
+      bitcoinY = (Random().nextDouble() * 1.6 - 0.8); // -0.8 to 0.8
       bitcoinVisible = true;
-      bitcoinFalling = true;
-      bitcoinVY = 0.0;
     });
   }
 
   void _maybeSpawnBitcoin() {
-    // 50% chance to spawn after each point
-    if (!bitcoinVisible && Random().nextBool()) {
+    // Only spawn if not already visible
+    if (!bitcoinVisible) {
       _spawnBitcoin();
     }
-  }
-
-  bool _ballHitsBitcoin() {
-    // Simple circle collision
-    double dx = ballX - bitcoinX;
-    double dy = ballY - bitcoinY;
-    double dist = sqrt(dx * dx + dy * dy);
-    return dist < (ballSize + bitcoinSize) / 2;
   }
 
   @override
@@ -257,10 +210,13 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
       body: LayoutBuilder(
         builder: (context, constraints) {
           return GestureDetector(
-            // Use onHorizontalDragUpdate so paddle always tracks finger/mouse
             onHorizontalDragUpdate: (details) => _onHorizontalDragUpdate(details, constraints),
             child: Stack(
               children: [
+                // --- Add scrolling background ---
+                Positioned.fill(
+                  child: ScrollingBackground(scrollSpeed: 80.0),
+                ),
                 // Center line (horizontal)
                 Positioned.fill(
                   child: CustomPaint(
@@ -297,7 +253,7 @@ class _PongMiniGameScreenState extends State<PongMiniGameScreen> with SingleTick
                     },
                   ),
                 ),
-                // Bitcoin collectible (falling)
+                // Bitcoin collectible (stationary)
                 if (bitcoinVisible)
                   Align(
                     alignment: Alignment(bitcoinX, bitcoinY),
