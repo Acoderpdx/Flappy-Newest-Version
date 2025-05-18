@@ -1504,18 +1504,36 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
             ),
           ),
         ),
-        // Ball Blast Mini-game Switch (bottom right)
+        // --- Ball Blast Mini-game Button (isreal.png image, bottom right) ---
         Positioned(
           right: 15,
           bottom: 40,
-          child: RotatedBox(
-            quarterTurns: 1,
-            child: Switch(
-              value: widget.ballBlastMiniGameSwitchValue,
-              onChanged: widget.onBallBlastMiniGameSwitchChanged,
-              activeColor: Colors.deepPurple,
-              inactiveThumbColor: Colors.white,
-              inactiveTrackColor: Colors.grey,
+          child: GestureDetector(
+            onTap: () => widget.onBallBlastMiniGameSwitchChanged(!widget.ballBlastMiniGameSwitchValue),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: widget.ballBlastMiniGameSwitchValue ? Colors.green : Colors.transparent,
+                  width: 4,
+                ),
+                boxShadow: [
+                  if (widget.ballBlastMiniGameSwitchValue)
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.5),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                ],
+              ),
+              padding: const EdgeInsets.all(6),
+              child: Image.asset(
+                'assets/images/isreal.png',
+                width: 38,
+                height: 38,
+                errorBuilder: (context, error, stackTrace) =>
+                    Icon(Icons.sports_baseball, color: Colors.deepPurple, size: 38),
+              ),
             ),
           ),
         ),
