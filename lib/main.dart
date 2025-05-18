@@ -1489,18 +1489,36 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
             ),
           ),
         ),
-        // Mini-game Switch (bottom left)
+        // --- Crash Mini-game Button (gamble.png image, bottom left) ---
         Positioned(
           left: 15,
           bottom: 40,
-          child: RotatedBox(
-            quarterTurns: 1,
-            child: Switch(
-              value: widget.miniGameSwitchValue,
-              onChanged: widget.onMiniGameSwitchChanged,
-              activeColor: Colors.blue,
-              inactiveThumbColor: Colors.white,
-              inactiveTrackColor: Colors.grey,
+          child: GestureDetector(
+            onTap: () => widget.onMiniGameSwitchChanged(!widget.miniGameSwitchValue),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: widget.miniGameSwitchValue ? Colors.green : Colors.transparent,
+                  width: 4,
+                ),
+                boxShadow: [
+                  if (widget.miniGameSwitchValue)
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.5),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                ],
+              ),
+              padding: const EdgeInsets.all(6),
+              child: Image.asset(
+                'assets/images/gamble.png',
+                width: 38,
+                height: 38,
+                errorBuilder: (context, error, stackTrace) =>
+                    Icon(Icons.casino, color: Colors.blue, size: 38),
+              ),
             ),
           ),
         ),

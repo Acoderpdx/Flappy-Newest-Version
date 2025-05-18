@@ -37,6 +37,7 @@ flutter:
     - assets/images/title_screen.png
     - assets/images/portal.png
     - assets/images/isreal.png
+    - assets/images/gamble.png
   fonts:
     - family: Flappybirdy
       fonts:
