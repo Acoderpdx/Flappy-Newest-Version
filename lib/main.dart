@@ -1821,7 +1821,8 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
             ],
           ),
         ),
-        SizedBox(height: 24),
+        // --- Subheading: move up by another 20px (was 29, now 9) ---
+        SizedBox(height: 9), // was 29, now 9 to move up by 20px
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
@@ -1829,11 +1830,11 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: 'FlappyBirdy',
-              fontSize: 30.8,
-              color: Colors.yellowAccent,
-              fontWeight: FontWeight.w500,
+              fontSize: 44,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
               letterSpacing: 1,
-              height: 1.2,
+              height: 1.18,
               shadows: [
                 Shadow(
                   offset: Offset(1, 1),
