@@ -293,6 +293,9 @@ class _GameScreenState extends State<GameScreen> {
   // Add this field if missing:
   bool _portfolioSwitchValue = false;
 
+  // Add USD currency to track dollars
+  double usdBalance = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -849,6 +852,8 @@ class _GameScreenState extends State<GameScreen> {
               redPillPnlHistory: redPillPnlHistory,
               bitcoinPnlHistory: bitcoinPnlHistory,
               totalWealthHistory: totalWealthHistory,
+              usdBalance: usdBalance,
+              onTrade: _handleTrade,
             ),
           ));
         },
@@ -1396,9 +1401,26 @@ class _GameScreenState extends State<GameScreen> {
     lionsManePnlHistory.add(lionsManeCollected.toDouble());
     redPillPnlHistory.add(redPillCollected.toDouble());
     bitcoinPnlHistory.add(bitcoinCollected.toDouble());
-    totalWealthHistory.add(
-      lionsManeCollected.toDouble() + redPillCollected.toDouble() + bitcoinCollected.toDouble()
-    );
+    
+    // Calculate USD equivalent (using Bitcoin price from somewhere in your game)
+    double bitcoinPrice = 69000.0; // This should come from your Bitcoin simulation
+    double totalValue = lionsManeCollected * 100.0 + 
+                        redPillCollected * 500.0 + 
+                        bitcoinCollected * bitcoinPrice +
+                        usdBalance;
+                        
+    totalWealthHistory.add(totalValue);
+  }
+  
+  // Add a handler for trading activities
+  void _handleTrade(int lionsManeDelta, int redPillDelta, int bitcoinDelta, double usdDelta) {
+    setState(() {
+      lionsManeCollected += lionsManeDelta;
+      redPillCollected += redPillDelta;
+      bitcoinCollected += bitcoinDelta;
+      usdBalance += usdDelta;
+      _updatePnlHistory();
+    });
   }
 }
 
