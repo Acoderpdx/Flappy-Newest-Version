@@ -45,6 +45,7 @@ flutter:
     - assets/images/house4.png
     - assets/images/house5.png
     - assets/images/eth.png
+    - assets/images/solana.png
   fonts:
     - family: Flappybirdy
       fonts:

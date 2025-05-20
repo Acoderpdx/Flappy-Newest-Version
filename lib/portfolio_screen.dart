@@ -7,14 +7,16 @@ class PortfolioScreen extends StatefulWidget {
   final int lionsManeCollected;
   final int redPillCollected;
   final int bitcoinCollected;
-  final int ethereumCollected; // Add Ethereum support
+  final int ethereumCollected;
+  final int solanaCollected; // Add Solana support
   final List<double> lionsManePnlHistory;
   final List<double> redPillPnlHistory;
   final List<double> bitcoinPnlHistory;
-  final List<double> ethereumPnlHistory; // Add Ethereum history
+  final List<double> ethereumPnlHistory;
+  final List<double> solanaPnlHistory; // Add Solana history
   final List<double> totalWealthHistory;
   final double usdBalance;
-  final Function(int, int, int, int, double)? onTrade; // Updated to include Ethereum
+  final Function(int, int, int, int, int, double)? onTrade; // Updated to include Solana
   final VoidCallback? onClose;
 
   const PortfolioScreen({
@@ -22,11 +24,13 @@ class PortfolioScreen extends StatefulWidget {
     required this.lionsManeCollected,
     required this.redPillCollected,
     required this.bitcoinCollected,
-    this.ethereumCollected = 0, // Default value
+    this.ethereumCollected = 0,
+    this.solanaCollected = 0, // Default value
     this.lionsManePnlHistory = const [0],
     this.redPillPnlHistory = const [0],
     this.bitcoinPnlHistory = const [0],
-    this.ethereumPnlHistory = const [0], // Default value
+    this.ethereumPnlHistory = const [0],
+    this.solanaPnlHistory = const [0], // Default value
     this.totalWealthHistory = const [0],
     this.usdBalance = 0.0,
     this.onTrade,
@@ -49,6 +53,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   late int _redPillCount;
   late int _bitcoinCount;
   late int _ethereumCount;
+  late int _solanaCount; // Add Solana count
   late double _usdBalance;
   
   // Bitcoin price simulation variables
@@ -65,19 +70,30 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   Timer? _ethPriceUpdateTimer;
   List<double> _ethPriceHistory = [];
   
+  // Solana price simulation variables - more volatile
+  late double _currentSolPrice;
+  final double _minSolPrice = 50.0;
+  final double _maxSolPrice = 300.0;
+  Timer? _solPriceUpdateTimer;
+  List<double> _solPriceHistory = [];
+  
   // Trading state
   final TextEditingController _buyBtcAmountController = TextEditingController();
   final TextEditingController _sellBtcAmountController = TextEditingController();
   final TextEditingController _buyEthAmountController = TextEditingController();
   final TextEditingController _sellEthAmountController = TextEditingController();
+  final TextEditingController _buySolAmountController = TextEditingController();
+  final TextEditingController _sellSolAmountController = TextEditingController();
   
   // Price chart variables
   final int _maxPriceHistoryPoints = 50;
   final Color _matrixGreen = const Color(0xFF00FF41);
   final Color _matrixBlack = const Color(0xFF0D0208);
   final Color _ethereumBlue = const Color(0xFF3C3C3D); // Ethereum brand color
+  final Color _solanaPurple = const Color(0xFF9945FF); // Solana brand color
   String _selectedTimeframe = '1H';
   String _selectedEthTimeframe = '1H';
+  String _selectedSolTimeframe = '1H';
 
   // Getters for max tradable amounts
   double get maxBtcCanBuy {
@@ -90,16 +106,22 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     return _usdBalance / _currentEthPrice;
   }
 
+  double get maxSolCanBuy {
+    if (_currentSolPrice <= 0) return 0;
+    return _usdBalance / _currentSolPrice;
+  }
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this); // Updated for 4 tabs
+    _tabController = TabController(length: 5, vsync: this); // Updated for 5 tabs
     
     // Initialize local state with widget values
     _lionsManeCount = widget.lionsManeCollected;
     _redPillCount = widget.redPillCollected;
     _bitcoinCount = widget.bitcoinCollected;
-    _ethereumCount = widget.ethereumCollected; // Initialize Ethereum count
+    _ethereumCount = widget.ethereumCollected;
+    _solanaCount = widget.solanaCollected; // Initialize Solana count
     _usdBalance = widget.usdBalance;
     
     // Initialize Bitcoin price simulation
@@ -110,6 +132,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     _currentEthPrice = _minEthPrice + (_maxEthPrice - _minEthPrice) * 0.5;
     _ethPriceHistory = List.generate(20, (_) => _currentEthPrice);
     
+    // Initialize Solana price simulation - start in the middle of range
+    _currentSolPrice = _minSolPrice + (_maxSolPrice - _minSolPrice) * 0.5;
+    _solPriceHistory = List.generate(20, (_) => _currentSolPrice);
+    
     // Start price updates
     _startPriceSimulations();
   }
@@ -118,18 +144,22 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   void dispose() {
     _priceUpdateTimer?.cancel();
     _ethPriceUpdateTimer?.cancel();
+    _solPriceUpdateTimer?.cancel(); // Cancel Solana timer
     _tabController.dispose();
     _buyBtcAmountController.dispose();
     _sellBtcAmountController.dispose();
     _buyEthAmountController.dispose();
     _sellEthAmountController.dispose();
+    _buySolAmountController.dispose();
+    _sellSolAmountController.dispose();
     super.dispose();
   }
   
-  // Simulate both Bitcoin and Ethereum price movements
+  // Simulate both Bitcoin, Ethereum and Solana price movements
   void _startPriceSimulations() {
     _startBitcoinPriceSimulation();
     _startEthereumPriceSimulation();
+    _startSolanaPriceSimulation();
   }
   
   // Simulate Bitcoin price movements
@@ -200,13 +230,54 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     });
   }
   
+  // Simulate Solana price movements with high volatility
+  void _startSolanaPriceSimulation() {
+    _solPriceUpdateTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      setState(() {
+        // More volatile algorithm for Solana - uses faster updates and larger movements
+        final midPrice = (_minSolPrice + _maxSolPrice) / 2;
+        // 6% of range - higher volatility than BTC (2%) and ETH (2.5%)
+        final volatility = (_maxSolPrice - _minSolPrice) * 0.06;
+        
+        // Less mean reversion for wilder swings
+        final distanceFromMid = (_currentSolPrice - midPrice).abs() / (_maxSolPrice - _minSolPrice);
+        final meanReversionFactor = 0.1 + distanceFromMid * 0.5; // Lower mean reversion
+        
+        // Calculate price change with more randomness
+        double priceChange;
+        if (_currentSolPrice > midPrice) {
+          // More extreme random component for high volatility
+          priceChange = volatility * ((Random().nextDouble() * 2.5 - 1.3) - meanReversionFactor);
+        } else {
+          priceChange = volatility * ((Random().nextDouble() * 2.5 - 1.2) + meanReversionFactor);
+        }
+        
+        // Add occasional price spikes
+        if (Random().nextDouble() < 0.05) { // 5% chance of spike
+          priceChange *= 3; // Triple the movement
+        }
+        
+        // Apply change and ensure within bounds
+        _currentSolPrice += priceChange;
+        _currentSolPrice = _currentSolPrice.clamp(_minSolPrice, _maxSolPrice);
+        
+        // Add to history and trim if needed
+        _solPriceHistory.add(_currentSolPrice);
+        if (_solPriceHistory.length > _maxPriceHistoryPoints) {
+          _solPriceHistory.removeAt(0);
+        }
+      });
+    });
+  }
+  
   // Calculate total USD value of portfolio
   double get _totalUsdValue {
     double btcValue = _bitcoinCount * _currentBtcPrice;
     double ethValue = _ethereumCount * _currentEthPrice;
+    double solValue = _solanaCount * _currentSolPrice; // Add Solana value
     double lionsManeValue = _lionsManeCount * _lionsManeRate;
     double redPillValue = _redPillCount * _redPillRate;
-    return _usdBalance + btcValue + ethValue + lionsManeValue + redPillValue;
+    return _usdBalance + btcValue + ethValue + solValue + lionsManeValue + redPillValue;
   }
   
   // Exchange one Lions Mane to USD
@@ -223,7 +294,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       // Then notify parent component
       if (widget.onTrade != null) {
         // Call the parent's onTrade callback to update the values
-        widget.onTrade!(-1, 0, 0, 0, usdAmount);
+        widget.onTrade!(-1, 0, 0, 0, 0, usdAmount);  // Fixed: Added 0 for Solana
       }
     }
   }
@@ -242,7 +313,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       // Then notify parent component
       if (widget.onTrade != null) {
         // Call the parent's onTrade callback to update the values
-        widget.onTrade!(0, -1, 0, 0, usdAmount);
+        widget.onTrade!(0, -1, 0, 0, 0, usdAmount);  // Fixed: Added 0 for Solana
       }
     }
   }
@@ -273,7 +344,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         
         if (widget.onTrade != null) {
           // Call the parent's onTrade callback
-          widget.onTrade!(0, 0, btcAmount, 0, -usdCost);
+          widget.onTrade!(0, 0, btcAmount, 0, 0, -usdCost);  // Fixed: Added 0 for Solana
         }
       } else {
         // Show error message if not enough USD
@@ -308,7 +379,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         // Then notify parent component
         if (widget.onTrade != null) {
           // Call the parent's onTrade callback
-          widget.onTrade!(0, 0, -btcAmount, 0, usdAmount);
+          widget.onTrade!(0, 0, -btcAmount, 0, 0, usdAmount);  // Fixed: Added 0 for Solana
         }
 
         // Confirm message
@@ -343,7 +414,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         });
         
         if (widget.onTrade != null) {
-          widget.onTrade!(0, 0, 0, ethAmount, -usdCost);
+          widget.onTrade!(0, 0, 0, ethAmount, 0, -usdCost);  // Fixed: Added 0 for Solana
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -370,7 +441,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         });
         
         if (widget.onTrade != null) {
-          widget.onTrade!(0, 0, 0, -ethAmount, usdAmount);
+          widget.onTrade!(0, 0, 0, -ethAmount, 0, usdAmount);  // Fixed: Added 0 for Solana
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -379,6 +450,66 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Not enough Ethereum to sell'))
+        );
+      }
+    }
+  }
+  
+  // Buy Solana with USD
+  void _buySolana() {
+    double? amount = double.tryParse(_buySolAmountController.text);
+    if (amount != null && amount > 0) {
+      double usdCost = amount * _currentSolPrice;
+      
+      if (_usdBalance >= usdCost) {
+        int solAmount = amount.floor();
+        if (solAmount <= 0) return;
+        
+        usdCost = solAmount * _currentSolPrice;
+        
+        setState(() {
+          _solanaCount += solAmount;
+          _usdBalance -= usdCost;
+          _buySolAmountController.clear();
+        });
+        
+        if (widget.onTrade != null) {
+          widget.onTrade!(0, 0, 0, 0, solAmount, -usdCost);
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Not enough USD for this purchase'))
+        );
+      }
+    }
+  }
+  
+  // Sell Solana for USD
+  void _sellSolana() {
+    double? amount = double.tryParse(_sellSolAmountController.text);
+    if (amount != null && amount > 0) {
+      int solAmount = amount.floor();
+      if (solAmount <= 0) return;
+      
+      if (_solanaCount >= solAmount) {
+        double usdAmount = solAmount * _currentSolPrice;
+        
+        setState(() {
+          _solanaCount -= solAmount;
+          _usdBalance += usdAmount;
+          _sellSolAmountController.clear();
+        });
+        
+        if (widget.onTrade != null) {
+          widget.onTrade!(0, 0, 0, 0, -solAmount, usdAmount);
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Successfully sold $solAmount Solana for \$${usdAmount.toStringAsFixed(2)}'))
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Not enough Solana to sell'))
         );
       }
     }
@@ -445,6 +576,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
 
   // Asset card widget for portfolio items
   Widget _buildAssetCard(String name, String imageAsset, int quantity, double rate, double totalValue, {bool canExchange = false, VoidCallback? onExchange}) {
+    Color valueColor = Colors.white;
+    if (name == 'Bitcoin') valueColor = _matrixGreen;
+    else if (name == 'Ethereum') valueColor = Colors.blueAccent;
+    else if (name == 'Solana') valueColor = _solanaPurple;
+    
     return Card(
       color: Colors.grey[850],
       margin: const EdgeInsets.only(bottom: 16),
@@ -474,6 +610,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                 Spacer(),
                 if (name == 'Bitcoin') _buildPriceTrend(_btcPriceHistory, _matrixGreen),
                 if (name == 'Ethereum') _buildPriceTrend(_ethPriceHistory, Colors.blueAccent),
+                if (name == 'Solana') _buildPriceTrend(_solPriceHistory, _solanaPurple),
               ],
             ),
             SizedBox(height: 12),
@@ -516,7 +653,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                     Text(
                       '\$${totalValue.toStringAsFixed(2)}',
                       style: TextStyle(
-                        color: name == 'Bitcoin' ? _matrixGreen : name == 'Ethereum' ? Colors.blueAccent : Colors.white,
+                        color: valueColor,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -611,12 +748,13 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
             children: [
               TabBar(
                 controller: _tabController,
-                isScrollable: true, // Make tabs scrollable to fit 4 tabs
+                isScrollable: true, // Make tabs scrollable to fit 5 tabs
                 tabs: [
                   Tab(text: 'Portfolio'),
                   Tab(text: 'Trade'),
                   Tab(text: 'Bitcoin'),
                   Tab(text: 'Ethereum'),
+                  Tab(text: 'Solana'), // Add Solana tab
                 ],
                 onTap: (int index) {
                   setState(() {}); // Force rebuild on tab change to ensure charts display
@@ -711,6 +849,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                         _ethereumCount,
                         _currentEthPrice,
                         _ethereumCount * _currentEthPrice,
+                      ),
+                      
+                      // Solana Asset Card
+                      _buildAssetCard(
+                        'Solana',
+                        'assets/images/solana.png',
+                        _solanaCount,
+                        _currentSolPrice,
+                        _solanaCount * _currentSolPrice,
                       ),
                       
                       // Lions Mane Asset Card
@@ -808,9 +955,41 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                         ),
                       ),
                       
-                      SizedBox(height: 24),
+                      SizedBox(height: 16),
+                      
+                      // Solana section
+                      Card(
+                        color: Colors.grey[900],
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Solana Price',
+                                style: TextStyle(color: Colors.white70, fontSize: 16),
+                              ),
+                              Row(
+                                children: [
+                                  Text(
+                                    '\$${_currentSolPrice.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  _buildPriceTrend(_solPriceHistory, _solanaPurple),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                       
                       // Buy/Sell Bitcoin UI
+                      SizedBox(height: 24),
                       Text(
                         'Bitcoin Trading',
                         style: TextStyle(
@@ -979,6 +1158,98 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                                     SizedBox(height: 8),
                                     ElevatedButton(
                                       onPressed: _ethereumCount > 0 ? _sellEthereum : null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                      child: const Text('Sell'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      SizedBox(height: 24),
+                      
+                      // Buy/Sell Solana UI
+                      Text(
+                        'Solana Trading',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Row(
+                        children: [
+                          // Buy Solana
+                          Expanded(
+                            child: Card(
+                              color: Colors.grey[850],
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Buy Solana',
+                                      style: TextStyle(color: Colors.white, fontSize: 16),
+                                    ),
+                                    SizedBox(height: 8),
+                                    TextField(
+                                      controller: _buySolAmountController,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      style: const TextStyle(color: Colors.white),
+                                      decoration: InputDecoration(
+                                        labelText: 'SOL Amount',
+                                        labelStyle: const TextStyle(color: Colors.white70),
+                                        suffix: const Text('SOL', style: TextStyle(color: Colors.white70)),
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    ElevatedButton(
+                                      onPressed: _usdBalance > 0 ? _buySolana : null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                      ),
+                                      child: const Text('Buy'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          // Sell Solana
+                          Expanded(
+                            child: Card(
+                              color: Colors.grey[850],
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Sell Solana',
+                                      style: TextStyle(color: Colors.white, fontSize: 16),
+                                    ),
+                                    SizedBox(height: 8),
+                                    TextField(
+                                      controller: _sellSolAmountController,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      style: const TextStyle(color: Colors.white),
+                                      decoration: InputDecoration(
+                                        labelText: 'SOL Amount',
+                                        labelStyle: const TextStyle(color: Colors.white70),
+                                        suffix: const Text('SOL', style: TextStyle(color: Colors.white70)),
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    ElevatedButton(
+                                      onPressed: _solanaCount > 0 ? _sellSolana : null,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.redAccent,
                                       ),
@@ -1242,6 +1513,163 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                     ],
                   ),
                 ),
+                
+                // Solana Tab - Price chart and analysis
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Solana Price',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                '\$${_currentSolPrice.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey[800]!),
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                              child: Text(
+                                'SOL/USD',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Timeframe selector
+                      Container(
+                        height: 60,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildTimeframeButton('1H', _selectedSolTimeframe == '1H', _solanaPurple),
+                              _buildTimeframeButton('24H', _selectedSolTimeframe == '24H', _solanaPurple),
+                              _buildTimeframeButton('1W', _selectedSolTimeframe == '1W', _solanaPurple),
+                              _buildTimeframeButton('1M', _selectedSolTimeframe == '1M', _solanaPurple),
+                              _buildTimeframeButton('1Y', _selectedSolTimeframe == '1Y', _solanaPurple),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Price chart
+                      Container(
+                        height: 300, // Fixed height ensures the chart is visible
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[800]!),
+                        ),
+                        child: _buildPriceChart(_solPriceHistory, _minSolPrice, _maxSolPrice, _solanaPurple),
+                      ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Market statistics
+                      Card(
+                        color: Colors.grey[900],
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Market Statistics',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildStatItem('24h High', '\$${(_currentSolPrice * 1.15).toStringAsFixed(2)}'),
+                                  _buildStatItem('24h Low', '\$${(_currentSolPrice * 0.85).toStringAsFixed(2)}'),
+                                ],
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildStatItem('All-Time High', '\$300.00'),
+                                  _buildStatItem('All-Time Low', '\$50.00'),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      // Volatility warning about Solana
+                      SizedBox(height: 20),
+                      Card(
+                        color: Colors.red[900]?.withOpacity(0.7),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.warning, color: Colors.yellow),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'High Volatility Warning',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Solana is known for extreme price volatility and can experience large price swings in short periods. Trade with caution.',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -1257,6 +1685,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         setState(() {
           if (color == Colors.blueAccent) {
             _selectedEthTimeframe = timeframe;
+          } else if (color == _solanaPurple) {
+            _selectedSolTimeframe = timeframe;
           } else {
             _selectedTimeframe = timeframe;
           }

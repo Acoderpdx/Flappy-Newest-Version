@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-platform :ios, '13.0'
+platform :ios, '12.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -29,6 +29,7 @@ flutter_ios_podfile_setup
 
 target 'Runner' do
   use_frameworks!
+  use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -39,5 +40,35 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    
+    # Add these lines to ensure Flutter framework is properly linked and found
+    target.build_configurations.each do |config|
+      config.build_settings['FRAMEWORK_SEARCH_PATHS'] ||= []
+      # Make sure these paths include Flutter.framework path
+      flutter_additional_paths = [
+        "$(SRCROOT)/Flutter",
+        "$(BUILT_PRODUCTS_DIR)",
+        "$(SRCROOT)/.symlinks/flutter/ios",
+        "$(SRCROOT)/.symlinks/flutter/ios-release",
+      ]
+      config.build_settings['FRAMEWORK_SEARCH_PATHS'] += flutter_additional_paths
+      
+      # Ensure proper code signing and team ID
+      config.build_settings['DEVELOPMENT_TEAM'] = 'V2T5R63NKA'
+      
+      # Fix iOS deployment target warnings
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+      
+      # Enable ALLOW_TARGET_PLATFORM_SPECIALIZATION for Xcode 15+
+      if config.base_configuration_reference.is_a?(Xcodeproj::Project::Object::PBXFileReference)
+        xcconfig_path = config.base_configuration_reference.real_path
+        if File.exist?(xcconfig_path)
+          xcconfig = File.read(xcconfig_path)
+          if xcconfig.include?('IPHONEOS_DEPLOYMENT_TARGET')
+            config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+          end
+        end
+      end
+    end
   end
 end

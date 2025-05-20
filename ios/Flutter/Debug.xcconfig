@@ -1,3 +1,10 @@
 #include "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
 #include "Generated.xcconfig"
-#include "CodeSigning.xcconfig"
+
+// Add development team and code signing identity
+DEVELOPMENT_TEAM = V2T5R63NKA
+CODE_SIGN_IDENTITY = Apple Development
+CODE_SIGN_STYLE = Automatic
+
+// Add Flutter framework search paths
+FRAMEWORK_SEARCH_PATHS = $(inherited) $(SRCROOT)/Flutter $(BUILT_PRODUCTS_DIR) $(SRCROOT)/.symlinks/flutter/ios

@@ -248,6 +248,7 @@ class _GameScreenState extends State<GameScreen> {
   int redPillCollected = 0;
   int bitcoinCollected = 0;
   int ethereumCollected = 0; // Add Ethereum counter
+  int solanaCollected = 0; // Add Solana counter
   List<LionsMane> lionsManes = [];
   List<RedPill> redPills = [];
   List<Bitcoin> bitcoins = [];
@@ -291,6 +292,7 @@ class _GameScreenState extends State<GameScreen> {
   List<double> redPillPnlHistory = [0];
   List<double> bitcoinPnlHistory = [0];
   List<double> ethereumPnlHistory = [0]; // Add Ethereum PnL history
+  List<double> solanaPnlHistory = [0]; // Add Solana PnL history
   List<double> totalWealthHistory = [0];
 
   // Add this field if missing:
@@ -854,11 +856,13 @@ class _GameScreenState extends State<GameScreen> {
               lionsManeCollected: lionsManeCollected,
               redPillCollected: redPillCollected,
               bitcoinCollected: bitcoinCollected,
-              ethereumCollected: ethereumCollected, // Add Ethereum
+              ethereumCollected: ethereumCollected,
+              solanaCollected: solanaCollected, // Add Solana
               lionsManePnlHistory: lionsManePnlHistory,
               redPillPnlHistory: redPillPnlHistory,
               bitcoinPnlHistory: bitcoinPnlHistory,
-              ethereumPnlHistory: ethereumPnlHistory, // Add Ethereum history
+              ethereumPnlHistory: ethereumPnlHistory,
+              solanaPnlHistory: solanaPnlHistory, // Add Solana history
               totalWealthHistory: totalWealthHistory,
               usdBalance: usdBalance,
               onTrade: _handleTrade,
@@ -1160,11 +1164,13 @@ class _GameScreenState extends State<GameScreen> {
                 lionsManeCollected: lionsManeCollected,
                 redPillCollected: redPillCollected,
                 bitcoinCollected: bitcoinCollected,
-                ethereumCollected: ethereumCollected, // Add Ethereum
+                ethereumCollected: ethereumCollected,
+                solanaCollected: solanaCollected, // Add Solana
                 lionsManePnlHistory: lionsManePnlHistory,
                 redPillPnlHistory: redPillPnlHistory,
                 bitcoinPnlHistory: bitcoinPnlHistory,
-                ethereumPnlHistory: ethereumPnlHistory, // Add Ethereum history
+                ethereumPnlHistory: ethereumPnlHistory,
+                solanaPnlHistory: solanaPnlHistory, // Add Solana history
                 totalWealthHistory: totalWealthHistory,
                 usdBalance: usdBalance,
                 onTrade: _handleTrade,
@@ -1438,27 +1444,31 @@ class _GameScreenState extends State<GameScreen> {
     lionsManePnlHistory.add(lionsManeCollected.toDouble());
     redPillPnlHistory.add(redPillCollected.toDouble());
     bitcoinPnlHistory.add(bitcoinCollected.toDouble());
-    ethereumPnlHistory.add(ethereumCollected.toDouble()); // Add Ethereum PnL history
+    ethereumPnlHistory.add(ethereumCollected.toDouble());
+    solanaPnlHistory.add(solanaCollected.toDouble()); // Add Solana history
     
-    // Calculate USD equivalent with Ethereum included
-    double bitcoinPrice = 69000.0; // This should come from your Bitcoin simulation
-    double ethereumPrice = 3500.0; // This should come from your Ethereum simulation
+    // Calculate USD equivalent with all crypto included
+    double bitcoinPrice = 69000.0;
+    double ethereumPrice = 3500.0;
+    double solanaPrice = 175.0; // Average price for Solana
     double totalValue = lionsManeCollected * 100.0 + 
                       redPillCollected * 500.0 + 
                       bitcoinCollected * bitcoinPrice +
                       ethereumCollected * ethereumPrice +
+                      solanaCollected * solanaPrice +
                       usdBalance;
                       
     totalWealthHistory.add(totalValue);
   }
   
-  // Add a handler for trading activities
-  void _handleTrade(int lionsManeDelta, int redPillDelta, int bitcoinDelta, int ethereumDelta, double usdDelta) {
+  // Update the handler for trading activities to include Solana
+  void _handleTrade(int lionsManeDelta, int redPillDelta, int bitcoinDelta, int ethereumDelta, int solanaDelta, double usdDelta) {
     setState(() {
       lionsManeCollected = (lionsManeCollected + lionsManeDelta).clamp(0, 999999);
       redPillCollected = (redPillCollected + redPillDelta).clamp(0, 999999);
       bitcoinCollected = (bitcoinCollected + bitcoinDelta).clamp(0, 999999);
       ethereumCollected = (ethereumCollected + ethereumDelta).clamp(0, 999999);
+      solanaCollected = (solanaCollected + solanaDelta).clamp(0, 999999);
       usdBalance += usdDelta;
       print("USD Balance updated: $usdBalance"); // Debug log
       _updatePnlHistory();

@@ -1,0 +1,6 @@
+#include "Debug.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = com.aidanbernard.flappybirdclone.tests
+DEVELOPMENT_TEAM = V2T5R63NKA
+CODE_SIGN_IDENTITY = Apple Development
+CODE_SIGN_STYLE = Automatic
