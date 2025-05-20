@@ -19,6 +19,7 @@ class PropertyScreen extends StatefulWidget {
 
 class _PropertyScreenState extends State<PropertyScreen> {
   int _currentHouseLevel = 1;
+  late double _currentBalance;
   
   // Define upgrade costs - each index corresponds to upgrading from level X to X+1
   final List<double> _upgradeCosts = [
@@ -28,11 +29,28 @@ class _PropertyScreenState extends State<PropertyScreen> {
     500000.0, // Level 4 -> 5
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _currentBalance = widget.usdBalance;
+  }
+
+  @override
+  void didUpdateWidget(PropertyScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update the balance if it changes externally
+    if (widget.usdBalance != oldWidget.usdBalance) {
+      setState(() {
+        _currentBalance = widget.usdBalance;
+      });
+    }
+  }
+
   String get _currentHouseAsset => 'assets/images/house${_currentHouseLevel}.png';
   
   bool get _canUpgrade {
     if (_currentHouseLevel >= 5) return false; // Max level reached
-    return widget.usdBalance >= _upgradeCosts[_currentHouseLevel - 1];
+    return _currentBalance >= _upgradeCosts[_currentHouseLevel - 1];
   }
 
   double get _nextUpgradeCost {
@@ -42,13 +60,16 @@ class _PropertyScreenState extends State<PropertyScreen> {
 
   void _upgradeHouse() {
     if (_canUpgrade) {
+      final double upgradeCost = _upgradeCosts[_currentHouseLevel - 1];
+      
+      // Update local state first
       setState(() {
-        // Deduct the cost
-        widget.onUpdateBalance(-_upgradeCosts[_currentHouseLevel - 1]);
-        
-        // Upgrade to next level
+        _currentBalance -= upgradeCost;
         _currentHouseLevel++;
       });
+      
+      // Notify parent component about the balance change
+      widget.onUpdateBalance(-upgradeCost);
     }
   }
 
@@ -84,15 +105,31 @@ class _PropertyScreenState extends State<PropertyScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // USD Balance display
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 20.0),
-                    child: Text(
-                      'USD: \$${widget.usdBalance.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
+                  // USD Balance display (updated to use _currentBalance)
+                  Card(
+                    color: Colors.black.withOpacity(0.8),
+                    margin: const EdgeInsets.only(bottom: 20.0),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 24.0),
+                      child: Column(
+                        children: [
+                          Text(
+                            'USD Balance',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white70,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '\$${_currentBalance.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -131,6 +168,14 @@ class _PropertyScreenState extends State<PropertyScreen> {
                             color: Colors.white,
                           ),
                         ),
+                        if (_currentHouseLevel < 5) SizedBox(height: 8),
+                        if (_currentHouseLevel < 5) Text(
+                          'Next upgrade costs \$${_nextUpgradeCost.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _canUpgrade ? Colors.green : Colors.red,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -145,7 +190,7 @@ class _PropertyScreenState extends State<PropertyScreen> {
                     child: Text(
                       _currentHouseLevel >= 5 
                       ? 'Maximum Level Reached' 
-                      : 'Upgrade to Level ${_currentHouseLevel + 1}: \$${_nextUpgradeCost.toStringAsFixed(2)}',
+                      : 'Upgrade to Level ${_currentHouseLevel + 1}',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.white,

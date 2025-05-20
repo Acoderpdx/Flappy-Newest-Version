@@ -1160,6 +1160,8 @@ class _GameScreenState extends State<GameScreen> {
                 redPillPnlHistory: redPillPnlHistory,
                 bitcoinPnlHistory: bitcoinPnlHistory,
                 totalWealthHistory: totalWealthHistory,
+                usdBalance: usdBalance,
+                onTrade: _handleTrade,
                 onClose: () {
                   setState(() {
                     _portfolioSwitchValue = false;
@@ -1168,7 +1170,7 @@ class _GameScreenState extends State<GameScreen> {
               ),
             if (_propertyScreenSwitchValue)
               PropertyScreen(
-                usdBalance: usdBalance,
+                usdBalance: usdBalance, // This should already be the updated value
                 onUpdateBalance: (usdDelta) {
                   setState(() {
                     usdBalance += usdDelta;
@@ -1179,7 +1181,7 @@ class _GameScreenState extends State<GameScreen> {
                   setState(() {
                     _propertyScreenSwitchValue = false;
                   });
-                }, // Make sure onClose is implemented
+                },
               ),
             if (gameOver && !_showMiniGame && !_showPongMiniGame && !_showBallBlastMiniGame && !_portfolioSwitchValue && !_propertyScreenSwitchValue)
               Positioned.fill(
@@ -1448,6 +1450,7 @@ class _GameScreenState extends State<GameScreen> {
       redPillCollected = (redPillCollected + redPillDelta).clamp(0, 999999);
       bitcoinCollected = (bitcoinCollected + bitcoinDelta).clamp(0, 999999);
       usdBalance += usdDelta;
+      print("USD Balance updated: $usdBalance"); // Debug log
       _updatePnlHistory();
     });
   }
