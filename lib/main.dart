@@ -1086,24 +1086,30 @@ class _GameScreenState extends State<GameScreen> {
           children: [
             gameStack,
             if (_showMiniGame)
-              CrashMiniGameScreen(
-                lionsManeCollected: lionsManeCollected,
-                redPillCollected: redPillCollected,
-                bitcoinCollected: bitcoinCollected,
-                onCollectibleChange: (collectible, delta) {
-                  setState(() {
-                    if (collectible == 'LionsMane') lionsManeCollected += delta;
-                    if (collectible == 'RedPill') redPillCollected += delta;
-                    if (collectible == 'Bitcoin') bitcoinCollected += delta;
-                    _updatePnlHistory(); // <-- Add this
-                  });
-                },
-                onClose: () {
-                  setState(() {
-                    _showMiniGame = false;
-                    _miniGameSwitchValue = false;
-                  });
-                },
+              Positioned.fill(
+                child: CrashMiniGame(
+                  onClose: () {
+                    setState(() {
+                      _showMiniGame = false;
+                      _miniGameSwitchValue = false;
+                    });
+                  },
+                  lionsManeCollected: lionsManeCollected,
+                  redPillCollected: redPillCollected,
+                  bitcoinCollected: bitcoinCollected,
+                  ethereumCollected: ethereumCollected,
+                  solanaCollected: solanaCollected,
+                  onUpdateAssets: (lionsManeDelta, redPillDelta, bitcoinDelta, ethereumDelta, solanaDelta) {
+                    setState(() {
+                      lionsManeCollected += lionsManeDelta;
+                      redPillCollected += redPillDelta;
+                      bitcoinCollected += bitcoinDelta;
+                      ethereumCollected += ethereumDelta;
+                      solanaCollected += solanaDelta;
+                      _updatePnlHistory();
+                    });
+                  },
+                ),
               ),
             if (_showPongMiniGame)
               PongMiniGameScreen(

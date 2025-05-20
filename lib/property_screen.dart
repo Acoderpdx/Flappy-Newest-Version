@@ -143,6 +143,10 @@ class _PropertyScreenState extends State<PropertyScreen> {
                       color: Colors.black.withOpacity(0.7),
                       border: Border.all(color: Colors.amber, width: 2),
                       borderRadius: BorderRadius.circular(10),
+                      image: DecorationImage(
+                        image: AssetImage('assets/images/house_background.png'),
+                        fit: BoxFit.cover,
+                      ),
                     ),
                     child: Center(
                       child: Image.asset(
