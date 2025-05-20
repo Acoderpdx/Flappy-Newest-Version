@@ -304,6 +304,7 @@ class _GameScreenState extends State<GameScreen> {
 
   // Add property screen state
   bool _propertyScreenSwitchValue = false;
+  int _currentHouseLevel = 1;  // Add this to track the house level
 
   @override
   void initState() {
@@ -1164,11 +1165,18 @@ class _GameScreenState extends State<GameScreen> {
               ),
             if (_propertyScreenSwitchValue)
               PropertyScreen(
-                usdBalance: usdBalance, // This should already be the updated value
+                usdBalance: usdBalance,
                 onUpdateBalance: (usdDelta) {
                   setState(() {
                     usdBalance += usdDelta;
                     _updatePnlHistory();
+                  });
+                },
+                // Add these two new parameters
+                currentHouseLevel: _currentHouseLevel,
+                onHouseLevelChanged: (newLevel) {
+                  setState(() {
+                    _currentHouseLevel = newLevel;
                   });
                 },
                 onClose: () {

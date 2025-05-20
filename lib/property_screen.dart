@@ -4,12 +4,16 @@ import 'main.dart'; // Import for ScrollingBackground
 class PropertyScreen extends StatefulWidget {
   final double usdBalance;
   final Function(double) onUpdateBalance;
+  final int currentHouseLevel;  // Add this parameter
+  final Function(int) onHouseLevelChanged;  // Add this callback
   final VoidCallback? onClose;
 
   const PropertyScreen({
     Key? key, 
     required this.usdBalance, 
     required this.onUpdateBalance,
+    this.currentHouseLevel = 1,  // Default to level 1 if not provided
+    required this.onHouseLevelChanged,
     this.onClose,
   }) : super(key: key);
 
@@ -18,7 +22,7 @@ class PropertyScreen extends StatefulWidget {
 }
 
 class _PropertyScreenState extends State<PropertyScreen> {
-  int _currentHouseLevel = 1;
+  late int _currentHouseLevel;  // Change to late
   late double _currentBalance;
   
   // Define upgrade costs - each index corresponds to upgrading from level X to X+1
@@ -33,6 +37,7 @@ class _PropertyScreenState extends State<PropertyScreen> {
   void initState() {
     super.initState();
     _currentBalance = widget.usdBalance;
+    _currentHouseLevel = widget.currentHouseLevel;  // Initialize from props
   }
 
   @override
@@ -42,6 +47,13 @@ class _PropertyScreenState extends State<PropertyScreen> {
     if (widget.usdBalance != oldWidget.usdBalance) {
       setState(() {
         _currentBalance = widget.usdBalance;
+      });
+    }
+    
+    // Also update house level if it changes externally
+    if (widget.currentHouseLevel != oldWidget.currentHouseLevel) {
+      setState(() {
+        _currentHouseLevel = widget.currentHouseLevel;
       });
     }
   }
@@ -68,8 +80,9 @@ class _PropertyScreenState extends State<PropertyScreen> {
         _currentHouseLevel++;
       });
       
-      // Notify parent component about the balance change
+      // Notify parent components about both balance and house level changes
       widget.onUpdateBalance(-upgradeCost);
+      widget.onHouseLevelChanged(_currentHouseLevel);  // Add this line
     }
   }
 
