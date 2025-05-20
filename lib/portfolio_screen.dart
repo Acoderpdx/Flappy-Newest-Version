@@ -258,7 +258,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   // Price trend indicator widget
   Widget _buildPriceTrend(List<double> history, Color color) {
     if (history.length <= 1) {
-      return Container(height: 50, color: Colors.black);
+      return Container(height: 50, width: 100, color: Colors.black);
     }
 
     // Scale the data points
@@ -278,8 +278,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
 
     return Container(
       height: 50,
+      width: 100,
       child: CustomPaint(
-        size: Size.infinite,
+        size: const Size(100, 50),
         painter: _ChartPainter(points, color),
       ),
     );
@@ -287,26 +288,29 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
 
   // Build graph segment button for timeframe selection
   Widget _buildGraphSegment(List<double> data, Color color, String label) {
-    return Column(
-      children: [
-        Container(
-          height: 100,
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.black45,
-            borderRadius: BorderRadius.circular(8),
+    return Container(
+      width: 120, // Fixed width to prevent overflow
+      child: Column(
+        children: [
+          Container(
+            height: 100,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black45,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: _buildPriceTrend(data, color),
           ),
-          child: _buildPriceTrend(data, color),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade300,
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade300,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -444,14 +448,18 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       );
     }
     
-    return CustomPaint(
-      painter: _BitcoinPriceChartPainter(
-        priceHistory: _btcPriceHistory,
-        minPrice: _minBtcPrice,
-        maxPrice: _maxBtcPrice,
-        lineColor: _matrixGreen,
-      ),
-      size: Size.infinite,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return CustomPaint(
+          painter: _BitcoinPriceChartPainter(
+            priceHistory: _btcPriceHistory,
+            minPrice: _minBtcPrice,
+            maxPrice: _maxBtcPrice,
+            lineColor: _matrixGreen,
+          ),
+          size: Size(constraints.maxWidth, constraints.maxHeight),
+        );
+      }
     );
   }
 
@@ -752,136 +760,128 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                   ),
                 ),
                 
-                // Bitcoin Tab - Price chart and analysis - FIXED: Layout issues with the chart
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                        child: IntrinsicHeight(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Bitcoin Price',
-                                          style: TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        SizedBox(height: 4),
-                                        Text(
-                                          '\$${_currentBtcPrice.toStringAsFixed(2)}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 28,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.black,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: Colors.grey[800]!),
-                                      ),
-                                      child: const Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                                        child: Text(
-                                          'BTC/USD',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                // Bitcoin Tab - Price chart and analysis - FIX LAYOUT ISSUES
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Bitcoin Price',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
                                 ),
-                                
-                                SizedBox(height: 20),
-                                
-                                // Timeframe selector
-                                SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(
-                                    children: [
-                                      _buildTimeframeButton('1H', true),
-                                      _buildTimeframeButton('24H', false),
-                                      _buildTimeframeButton('1W', false),
-                                      _buildTimeframeButton('1M', false),
-                                      _buildTimeframeButton('1Y', false),
-                                    ],
-                                  ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                '\$${_currentBtcPrice.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                
-                                SizedBox(height: 20),
-                                
-                                // Price chart - FIXED: Use a fixed height to ensure it displays
-                                Container(
-                                  height: 300, // Fixed height ensures the chart is visible
-                                  decoration: BoxDecoration(
-                                    color: Colors.black,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.grey[800]!),
-                                  ),
-                                  child: _buildPriceChart(),
-                                ),
-                                
-                                SizedBox(height: 20),
-                                
-                                // Market statistics
-                                Card(
-                                  color: Colors.grey[900],
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Market Statistics',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        SizedBox(height: 16),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            _buildStatItem('24h High', '\$${(_currentBtcPrice * 1.05).toStringAsFixed(2)}'),
-                                            _buildStatItem('24h Low', '\$${(_currentBtcPrice * 0.95).toStringAsFixed(2)}'),
-                                          ],
-                                        ),
-                                        SizedBox(height: 16),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            _buildStatItem('All-Time High', '\$100,000.00'),
-                                            _buildStatItem('All-Time Low', '\$60,000.00'),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              ),
+                            ],
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey[800]!),
                             ),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                              child: Text(
+                                'BTC/USD',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Timeframe selector - FIX: Ensure contained within width bounds
+                      Container(
+                        height: 140,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildTimeframeButton('1H', _selectedTimeframe == '1H'),
+                              _buildTimeframeButton('24H', _selectedTimeframe == '24H'),
+                              _buildTimeframeButton('1W', _selectedTimeframe == '1W'),
+                              _buildTimeframeButton('1M', _selectedTimeframe == '1M'),
+                              _buildTimeframeButton('1Y', _selectedTimeframe == '1Y'),
+                            ],
                           ),
                         ),
                       ),
-                    );
-                  },
+                      
+                      SizedBox(height: 20),
+                      
+                      // Price chart - Use SizedBox with fixed height instead of Expanded
+                      Container(
+                        height: 300, // Fixed height ensures the chart is visible
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[800]!),
+                        ),
+                        child: _buildPriceChart(),
+                      ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Market statistics
+                      Card(
+                        color: Colors.grey[900],
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Market Statistics',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildStatItem('24h High', '\$${(_currentBtcPrice * 1.05).toStringAsFixed(2)}'),
+                                  _buildStatItem('24h Low', '\$${(_currentBtcPrice * 0.95).toStringAsFixed(2)}'),
+                                ],
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildStatItem('All-Time High', '\$100,000.00'),
+                                  _buildStatItem('All-Time Low', '\$60,000.00'),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
