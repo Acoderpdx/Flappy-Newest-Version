@@ -1128,12 +1128,12 @@ class _GameScreenState extends State<GameScreen> {
                     _ballBlastMiniGameSwitchValue = false;
                   });
                 },
-                onBitcoinCollected: () {
+                onSolanaCollected: (int amount) {
                   setState(() {
-                    bitcoinCollected += 1;
-                    _updatePnlHistory(); // <-- Add this
+                    solanaCollected += amount;
+                    _updatePnlHistory();
                   });
-                },
+                } as void Function(int)?,  // Cast to the expected nullable function type
               ),
             if (_portfolioSwitchValue)
               PortfolioScreen(

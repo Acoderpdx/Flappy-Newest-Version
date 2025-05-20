@@ -5,8 +5,8 @@ import 'main.dart'; // For ScrollingBackground
 
 class BallBlastMiniGameScreen extends StatefulWidget {
   final VoidCallback? onClose;
-  final void Function()? onBitcoinCollected; // <-- Add this callback
-  const BallBlastMiniGameScreen({Key? key, this.onClose, this.onBitcoinCollected}) : super(key: key);
+  final void Function(int)? onSolanaCollected; // <-- Update parameter type
+  const BallBlastMiniGameScreen({Key? key, this.onClose, this.onSolanaCollected}) : super(key: key);
 
   @override
   State<BallBlastMiniGameScreen> createState() => _BallBlastMiniGameScreenState();
@@ -50,13 +50,13 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
 
   int projectileColorIndex = 0; // Track which color to use next
 
-  // --- Bitcoin collectible state ---
-  List<_DroppedBitcoin> droppedBitcoins = [];
-  int bitcoinCollected = 0; // <-- Track collected in this mini-game
+  // --- Solana collectible state ---
+  List<_DroppedSolana> droppedSolanas = [];
+  int solanaCollected = 0; // <-- Track collected in this mini-game
 
   // --- Coin flip state ---
   bool showCoinFlip = false;
-  int coinFlipBitcoins = 0;
+  int coinFlipSolanas = 0;
   bool? coinFlipResult; // true = win, false = lose, null = not flipped
   bool coinFlipInProgress = false;
 
@@ -170,8 +170,8 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
               _explode(b.x, b.y, b.radius);
               b.destroyed = true;
               score += 1;
-              // --- Drop a bitcoin at the ball's position ---
-              droppedBitcoins.add(_DroppedBitcoin(
+              // --- Drop a solana at the ball's position ---
+              droppedSolanas.add(_DroppedSolana(
                 x: b.x,
                 y: b.y,
                 vy: 2.5 + rand.nextDouble() * 1.5,
@@ -184,42 +184,42 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
       }
       projectiles.removeWhere((p) => p.hit);
 
-      // --- Move dropped bitcoins with bounce (use same logic as balls) ---
-      for (final btc in droppedBitcoins) {
-        if (!btc.collected) {
-          btc.x += btc.vx;
-          btc.y += btc.vy;
-          btc.vy += _gravityForRound(currentRound);
+      // --- Move dropped solanas with bounce (use same logic as balls) ---
+      for (final sol in droppedSolanas) {
+        if (!sol.collected) {
+          sol.x += sol.vx;
+          sol.y += sol.vy;
+          sol.vy += _gravityForRound(currentRound);
 
           // Bounce off floor (same as balls)
           double floorY = size.height - cannonHeight;
-          if (btc.y + 19 > floorY) { // 19 is half of bitcoin image (38x38)
-            btc.y = floorY - 19;
-            btc.vy = -btc.vy * _bounceForRound(currentRound);
-            if (btc.vy.abs() < 1.2) btc.vy = 0;
+          if (sol.y + 19 > floorY) { // 19 is half of solana image (38x38)
+            sol.y = floorY - 19;
+            sol.vy = -sol.vy * _bounceForRound(currentRound);
+            if (sol.vy.abs() < 1.2) sol.vy = 0;
           }
 
           // Bounce off walls (same as balls)
-          if (btc.x - 19 < 0) {
-            btc.x = 19;
-            btc.vx = -btc.vx;
+          if (sol.x - 19 < 0) {
+            sol.x = 19;
+            sol.vx = -sol.vx;
           }
-          if (btc.x + 19 > size.width) {
-            btc.x = size.width - 19;
-            btc.vx = -btc.vx;
+          if (sol.x + 19 > size.width) {
+            sol.x = size.width - 19;
+            sol.vx = -sol.vx;
           }
 
           // Friction on ground
-          if (btc.y + 19 >= floorY && btc.vy.abs() < 0.01) {
-            btc.vx *= 0.95;
-            if (btc.vx.abs() < 0.08) btc.vx = 0;
+          if (sol.y + 19 >= floorY && sol.vy.abs() < 0.01) {
+            sol.vx *= 0.95;
+            if (sol.vx.abs() < 0.08) sol.vx = 0;
           }
         }
       }
 
-      // --- Collect dropped bitcoins if bird.png (cannon) overlaps ---
-      for (final btc in droppedBitcoins) {
-        if (btc.collected) continue;
+      // --- Collect dropped solanas if bird.png (cannon) overlaps ---
+      for (final sol in droppedSolanas) {
+        if (sol.collected) continue;
         // Cannon rectangle (bird.png)
         final cannonRect = Rect.fromLTWH(
           cannonX * size.width - cannonWidth / 2,
@@ -227,24 +227,24 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
           cannonWidth,
           cannonHeight,
         );
-        // Bitcoin as a circle
-        final btcCenter = Offset(btc.x, btc.y);
-        final btcRadius = 19.0;
-        // Check if the center of the bitcoin is inside the cannon rectangle
-        if (cannonRect.contains(btcCenter)) {
-          btc.collected = true;
-          bitcoinCollected += 1;
-          if (widget.onBitcoinCollected != null) widget.onBitcoinCollected!();
+        // Solana as a circle
+        final solCenter = Offset(sol.x, sol.y);
+        final solRadius = 19.0;
+        // Check if the center of the solana is inside the cannon rectangle
+        if (cannonRect.contains(solCenter)) {
+          sol.collected = true;
+          solanaCollected += 1;
+          if (widget.onSolanaCollected != null) widget.onSolanaCollected!(1); // <-- Pass 1 as the parameter
         } else {
           // More accurate: check if the circle overlaps the rectangle
-          final closestX = btc.x.clamp(cannonRect.left, cannonRect.right);
-          final closestY = btc.y.clamp(cannonRect.top, cannonRect.bottom);
-          final dx = btc.x - closestX;
-          final dy = btc.y - closestY;
-          if ((dx * dx + dy * dy) <= (btcRadius * btcRadius)) {
-            btc.collected = true;
-            bitcoinCollected += 1;
-            if (widget.onBitcoinCollected != null) widget.onBitcoinCollected!();
+          final closestX = sol.x.clamp(cannonRect.left, cannonRect.right);
+          final closestY = sol.y.clamp(cannonRect.top, cannonRect.bottom);
+          final dx = sol.x - closestX;
+          final dy = sol.y - closestY;
+          if ((dx * dx + dy * dy) <= (solRadius * solRadius)) {
+            sol.collected = true;
+            solanaCollected += 1;
+            if (widget.onSolanaCollected != null) widget.onSolanaCollected!(1); // <-- Pass 1 as the parameter
           }
         }
       }
@@ -365,13 +365,13 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
     _lastSize = MediaQuery.of(context).size;
 
     // --- Show coin flip overlay if needed ---
-    if ((gameOver && bitcoinCollected > 0 && !showCoinFlip) ||
-        (gameOver && bitcoinCollected > 0 && showCoinFlip)) {
+    if ((gameOver && solanaCollected > 0 && !showCoinFlip) ||
+        (gameOver && solanaCollected > 0 && showCoinFlip)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!showCoinFlip) {
           setState(() {
             showCoinFlip = true;
-            coinFlipBitcoins = bitcoinCollected;
+            coinFlipSolanas = solanaCollected;
             coinFlipResult = null;
             coinFlipInProgress = false;
           });
@@ -462,15 +462,15 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
                         ],
                       );
                     }),
-                    // --- Dropped bitcoins ---
-                    ...droppedBitcoins.where((btc) => !btc.collected).map((btc) {
+                    // --- Dropped solanas ---
+                    ...droppedSolanas.where((sol) => !sol.collected).map((sol) {
                       return Positioned(
-                        left: btc.x - 19,
-                        top: btc.y - 19,
+                        left: sol.x - 19,
+                        top: sol.y - 19,
                         width: 38,
                         height: 38,
                         child: Image.asset(
-                          'assets/images/bitcoin.png',
+                          'assets/images/solana.png',
                           width: 38,
                           height: 38,
                         ),
@@ -524,21 +524,21 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
             },
           ),
           
-          // --- Bitcoin counter display (top right) ---
+          // --- Solana counter display (top right) ---
           Positioned(
             top: 24,
             right: 24,
             child: Row(
               children: [
                 Image.asset(
-                  'assets/images/bitcoin.png',
+                  'assets/images/solana.png',
                   width: 28,
                   height: 28,
                   errorBuilder: (context, error, stackTrace) => Icon(Icons.currency_bitcoin, color: Colors.amber),
                 ),
                 SizedBox(width: 4),
                 Text(
-                  '$bitcoinCollected',
+                  '$solanaCollected',
                   style: TextStyle(
                     color: Colors.amber,
                     fontSize: 24,
@@ -641,7 +641,7 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
                 color: Colors.black87,
                 child: Center(
                   child: CoinFlipOverlay(
-                    bitcoins: coinFlipBitcoins,
+                    bitcoins: coinFlipSolanas,
                     result: coinFlipResult,
                     inProgress: coinFlipInProgress,
                     onFlip: () async {
@@ -657,9 +657,9 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
                       });
                       await Future.delayed(const Duration(seconds: 1));
                       if (win) {
-                        if (widget.onBitcoinCollected != null) {
-                          for (int i = 0; i < coinFlipBitcoins; i++) {
-                            widget.onBitcoinCollected!();
+                        if (widget.onSolanaCollected != null) {
+                          for (int i = 0; i < coinFlipSolanas; i++) {
+                            widget.onSolanaCollected!(1); // <-- Pass 1 as the parameter
                           }
                         }
                       }
@@ -766,11 +766,11 @@ class _BallBlastPainter extends CustomPainter {
   bool shouldRepaint(covariant _BallBlastPainter oldDelegate) => true;
 }
 
-// --- Helper class for dropped bitcoin ---
-class _DroppedBitcoin {
+// --- Helper class for dropped solana ---
+class _DroppedSolana {
   double x, y, vy, vx;
   bool collected;
-  _DroppedBitcoin({
+  _DroppedSolana({
     required this.x,
     required this.y,
     required this.vy,
@@ -802,17 +802,17 @@ class CoinFlipOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     String message;
     if (result == null) {
-      message = "Gamble all $bitcoins bitcoin${bitcoins == 1 ? '' : 's'}?\nWin: Double it!\nLose: Lose it all!";
+      message = "Gamble all $bitcoins solana${bitcoins == 1 ? '' : 's'}?\nWin: Double it!\nLose: Lose it all!";
     } else if (result == true) {
-      message = "You won!\nYou doubled your bitcoins!";
+      message = "You won!\nYou doubled your solana!";
     } else {
-      message = "You lost!\nAll your bitcoins are gone!";
+      message = "You lost!\nAll your solana are gone!";
     }
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Image.asset(
-          'assets/images/bitcoin.png',
+          'assets/images/solana.png',
           width: 120,
           height: 120,
         ),
