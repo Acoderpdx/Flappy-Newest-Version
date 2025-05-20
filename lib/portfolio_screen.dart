@@ -7,12 +7,14 @@ class PortfolioScreen extends StatefulWidget {
   final int lionsManeCollected;
   final int redPillCollected;
   final int bitcoinCollected;
+  final int ethereumCollected; // Add Ethereum support
   final List<double> lionsManePnlHistory;
   final List<double> redPillPnlHistory;
   final List<double> bitcoinPnlHistory;
+  final List<double> ethereumPnlHistory; // Add Ethereum history
   final List<double> totalWealthHistory;
   final double usdBalance;
-  final Function(int, int, int, double)? onTrade;
+  final Function(int, int, int, int, double)? onTrade; // Updated to include Ethereum
   final VoidCallback? onClose;
 
   const PortfolioScreen({
@@ -20,9 +22,11 @@ class PortfolioScreen extends StatefulWidget {
     required this.lionsManeCollected,
     required this.redPillCollected,
     required this.bitcoinCollected,
+    this.ethereumCollected = 0, // Default value
     this.lionsManePnlHistory = const [0],
     this.redPillPnlHistory = const [0],
     this.bitcoinPnlHistory = const [0],
+    this.ethereumPnlHistory = const [0], // Default value
     this.totalWealthHistory = const [0],
     this.usdBalance = 0.0,
     this.onTrade,
@@ -44,6 +48,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   late int _lionsManeCount;
   late int _redPillCount;
   late int _bitcoinCount;
+  late int _ethereumCount;
   late double _usdBalance;
   
   // Bitcoin price simulation variables
@@ -53,52 +58,82 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   Timer? _priceUpdateTimer;
   List<double> _btcPriceHistory = [];
   
+  // Ethereum price simulation variables
+  late double _currentEthPrice;
+  final double _minEthPrice = 3000.0;
+  final double _maxEthPrice = 6000.0;
+  Timer? _ethPriceUpdateTimer;
+  List<double> _ethPriceHistory = [];
+  
   // Trading state
   final TextEditingController _buyBtcAmountController = TextEditingController();
   final TextEditingController _sellBtcAmountController = TextEditingController();
+  final TextEditingController _buyEthAmountController = TextEditingController();
+  final TextEditingController _sellEthAmountController = TextEditingController();
   
   // Price chart variables
   final int _maxPriceHistoryPoints = 50;
   final Color _matrixGreen = const Color(0xFF00FF41);
   final Color _matrixBlack = const Color(0xFF0D0208);
+  final Color _ethereumBlue = const Color(0xFF3C3C3D); // Ethereum brand color
   String _selectedTimeframe = '1H';
+  String _selectedEthTimeframe = '1H';
 
-  // This getter is required and was missing
+  // Getters for max tradable amounts
   double get maxBtcCanBuy {
     if (_currentBtcPrice <= 0) return 0;
     return _usdBalance / _currentBtcPrice;
   }
 
+  double get maxEthCanBuy {
+    if (_currentEthPrice <= 0) return 0;
+    return _usdBalance / _currentEthPrice;
+  }
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this); // Updated for 4 tabs
     
     // Initialize local state with widget values
     _lionsManeCount = widget.lionsManeCollected;
     _redPillCount = widget.redPillCollected;
     _bitcoinCount = widget.bitcoinCollected;
+    _ethereumCount = widget.ethereumCollected; // Initialize Ethereum count
     _usdBalance = widget.usdBalance;
     
     // Initialize Bitcoin price simulation
     _currentBtcPrice = _minBtcPrice + (_maxBtcPrice - _minBtcPrice) * 0.5;
     _btcPriceHistory = List.generate(20, (_) => _currentBtcPrice);
     
+    // Initialize Ethereum price simulation
+    _currentEthPrice = _minEthPrice + (_maxEthPrice - _minEthPrice) * 0.5;
+    _ethPriceHistory = List.generate(20, (_) => _currentEthPrice);
+    
     // Start price updates
-    _startPriceSimulation();
+    _startPriceSimulations();
   }
   
   @override
   void dispose() {
     _priceUpdateTimer?.cancel();
+    _ethPriceUpdateTimer?.cancel();
     _tabController.dispose();
     _buyBtcAmountController.dispose();
     _sellBtcAmountController.dispose();
+    _buyEthAmountController.dispose();
+    _sellEthAmountController.dispose();
     super.dispose();
   }
   
+  // Simulate both Bitcoin and Ethereum price movements
+  void _startPriceSimulations() {
+    _startBitcoinPriceSimulation();
+    _startEthereumPriceSimulation();
+  }
+  
   // Simulate Bitcoin price movements
-  void _startPriceSimulation() {
+  void _startBitcoinPriceSimulation() {
     _priceUpdateTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       setState(() {
         // Random walk algorithm with tendency to mean revert
@@ -132,12 +167,46 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     });
   }
   
+  // Simulate Ethereum price movements
+  void _startEthereumPriceSimulation() {
+    _ethPriceUpdateTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      setState(() {
+        // Similar to Bitcoin but with different parameters for unique behavior
+        final midPrice = (_minEthPrice + _maxEthPrice) / 2;
+        final volatility = (_maxEthPrice - _minEthPrice) * 0.025; // 2.5% of range
+        
+        // Mean reversion factor with different characteristics
+        final distanceFromMid = (_currentEthPrice - midPrice).abs() / (_maxEthPrice - _minEthPrice);
+        final meanReversionFactor = 0.15 + distanceFromMid * 0.7; // 0.15-0.85 range
+        
+        // Calculate price change with mean reversion
+        double priceChange;
+        if (_currentEthPrice > midPrice) {
+          priceChange = volatility * ((Random().nextDouble() * 2 - 1.1) - meanReversionFactor);
+        } else {
+          priceChange = volatility * ((Random().nextDouble() * 2 - 0.9) + meanReversionFactor);
+        }
+        
+        // Apply change and ensure within bounds
+        _currentEthPrice += priceChange;
+        _currentEthPrice = _currentEthPrice.clamp(_minEthPrice, _maxEthPrice);
+        
+        // Add to history and trim if needed
+        _ethPriceHistory.add(_currentEthPrice);
+        if (_ethPriceHistory.length > _maxPriceHistoryPoints) {
+          _ethPriceHistory.removeAt(0);
+        }
+      });
+    });
+  }
+  
   // Calculate total USD value of portfolio
   double get _totalUsdValue {
     double btcValue = _bitcoinCount * _currentBtcPrice;
+    double ethValue = _ethereumCount * _currentEthPrice;
     double lionsManeValue = _lionsManeCount * _lionsManeRate;
     double redPillValue = _redPillCount * _redPillRate;
-    return _usdBalance + btcValue + lionsManeValue + redPillValue;
+    return _usdBalance + btcValue + ethValue + lionsManeValue + redPillValue;
   }
   
   // Exchange one Lions Mane to USD
@@ -154,7 +223,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       // Then notify parent component
       if (widget.onTrade != null) {
         // Call the parent's onTrade callback to update the values
-        widget.onTrade!(-1, 0, 0, usdAmount);
+        widget.onTrade!(-1, 0, 0, 0, usdAmount);
       }
     }
   }
@@ -173,7 +242,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       // Then notify parent component
       if (widget.onTrade != null) {
         // Call the parent's onTrade callback to update the values
-        widget.onTrade!(0, -1, 0, usdAmount);
+        widget.onTrade!(0, -1, 0, 0, usdAmount);
       }
     }
   }
@@ -195,16 +264,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         // Recalculate the actual cost using the rounded BTC amount
         usdCost = btcAmount * _currentBtcPrice;
         
+        // Update local state
+        setState(() {
+          _bitcoinCount += btcAmount;
+          _usdBalance -= usdCost;
+          _buyBtcAmountController.clear();
+        });
+        
         if (widget.onTrade != null) {
           // Call the parent's onTrade callback
-          widget.onTrade!(0, 0, btcAmount, -usdCost);
-          
-          // Update local state
-          setState(() {
-            _bitcoinCount += btcAmount;
-            _usdBalance -= usdCost;
-            _buyBtcAmountController.clear();
-          });
+          widget.onTrade!(0, 0, btcAmount, 0, -usdCost);
         }
       } else {
         // Show error message if not enough USD
@@ -215,7 +284,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     }
   }
   
-  // Sell Bitcoin for USD - FIXED IMPLEMENTATION
+  // Sell Bitcoin for USD
   void _sellBitcoin() {
     // Try to parse the input as a number
     double? amount = double.tryParse(_sellBtcAmountController.text);
@@ -239,7 +308,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         // Then notify parent component
         if (widget.onTrade != null) {
           // Call the parent's onTrade callback
-          widget.onTrade!(0, 0, -btcAmount, usdAmount);
+          widget.onTrade!(0, 0, -btcAmount, 0, usdAmount);
         }
 
         // Confirm message
@@ -250,6 +319,66 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         // Show error message if not enough BTC
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Not enough Bitcoin to sell'))
+        );
+      }
+    }
+  }
+  
+  // Buy Ethereum with USD
+  void _buyEthereum() {
+    double? amount = double.tryParse(_buyEthAmountController.text);
+    if (amount != null && amount > 0) {
+      double usdCost = amount * _currentEthPrice;
+      
+      if (_usdBalance >= usdCost) {
+        int ethAmount = amount.floor();
+        if (ethAmount <= 0) return;
+        
+        usdCost = ethAmount * _currentEthPrice;
+        
+        setState(() {
+          _ethereumCount += ethAmount;
+          _usdBalance -= usdCost;
+          _buyEthAmountController.clear();
+        });
+        
+        if (widget.onTrade != null) {
+          widget.onTrade!(0, 0, 0, ethAmount, -usdCost);
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Not enough USD for this purchase'))
+        );
+      }
+    }
+  }
+  
+  // Sell Ethereum for USD
+  void _sellEthereum() {
+    double? amount = double.tryParse(_sellEthAmountController.text);
+    if (amount != null && amount > 0) {
+      int ethAmount = amount.floor();
+      if (ethAmount <= 0) return;
+      
+      if (_ethereumCount >= ethAmount) {
+        double usdAmount = ethAmount * _currentEthPrice;
+        
+        setState(() {
+          _ethereumCount -= ethAmount;
+          _usdBalance += usdAmount;
+          _sellEthAmountController.clear();
+        });
+        
+        if (widget.onTrade != null) {
+          widget.onTrade!(0, 0, 0, -ethAmount, usdAmount);
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Successfully sold $ethAmount Ethereum for \$${usdAmount.toStringAsFixed(2)}'))
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Not enough Ethereum to sell'))
         );
       }
     }
@@ -344,6 +473,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                 ),
                 Spacer(),
                 if (name == 'Bitcoin') _buildPriceTrend(_btcPriceHistory, _matrixGreen),
+                if (name == 'Ethereum') _buildPriceTrend(_ethPriceHistory, Colors.blueAccent),
               ],
             ),
             SizedBox(height: 12),
@@ -386,7 +516,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                     Text(
                       '\$${totalValue.toStringAsFixed(2)}',
                       style: TextStyle(
-                        color: name == 'Bitcoin' ? _matrixGreen : Colors.white,
+                        color: name == 'Bitcoin' ? _matrixGreen : name == 'Ethereum' ? Colors.blueAccent : Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -438,8 +568,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   }
   
   // Price chart widget
-  Widget _buildPriceChart() {
-    if (_btcPriceHistory.isEmpty) {
+  Widget _buildPriceChart(List<double> priceHistory, double minPrice, double maxPrice, Color lineColor) {
+    if (priceHistory.isEmpty) {
       return Center(
         child: Text(
           'Loading price data...',
@@ -452,10 +582,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       builder: (context, constraints) {
         return CustomPaint(
           painter: _BitcoinPriceChartPainter(
-            priceHistory: _btcPriceHistory,
-            minPrice: _minBtcPrice,
-            maxPrice: _maxBtcPrice,
-            lineColor: _matrixGreen,
+            priceHistory: priceHistory,
+            minPrice: minPrice,
+            maxPrice: maxPrice,
+            lineColor: lineColor,
           ),
           size: Size(constraints.maxWidth, constraints.maxHeight),
         );
@@ -481,13 +611,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
             children: [
               TabBar(
                 controller: _tabController,
+                isScrollable: true, // Make tabs scrollable to fit 4 tabs
                 tabs: [
                   Tab(text: 'Portfolio'),
                   Tab(text: 'Trade'),
                   Tab(text: 'Bitcoin'),
+                  Tab(text: 'Ethereum'),
                 ],
                 onTap: (int index) {
-                  setState(() {}); // Force rebuild on tab change to ensure chart displays
+                  setState(() {}); // Force rebuild on tab change to ensure charts display
                 },
               ),
               const Divider(height: 1, color: Colors.grey),
@@ -572,7 +704,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                         _bitcoinCount * _currentBtcPrice,
                       ),
                       
-                      // Lions Mane Asset Card - Make sure onExchange is properly passed
+                      // Ethereum Asset Card
+                      _buildAssetCard(
+                        'Ethereum',
+                        'assets/images/eth.png',
+                        _ethereumCount,
+                        _currentEthPrice,
+                        _ethereumCount * _currentEthPrice,
+                      ),
+                      
+                      // Lions Mane Asset Card
                       _buildAssetCard(
                         'Lions Mane',
                         'assets/images/lions_mane.png',
@@ -597,12 +738,13 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                   ),
                 ),
                 
-                // Trade Tab - Buy/sell Bitcoin
+                // Trade Tab - Buy/sell cryptocurrencies
                 SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Bitcoin section
                       Card(
                         color: Colors.grey[900],
                         child: Padding(
@@ -611,7 +753,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Current Bitcoin Price',
+                                'Bitcoin Price',
                                 style: TextStyle(color: Colors.white70, fontSize: 16),
                               ),
                               Row(
@@ -633,11 +775,44 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                         ),
                       ),
                       
+                      SizedBox(height: 16),
+                      
+                      // Ethereum section
+                      Card(
+                        color: Colors.grey[900],
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Ethereum Price',
+                                style: TextStyle(color: Colors.white70, fontSize: 16),
+                              ),
+                              Row(
+                                children: [
+                                  Text(
+                                    '\$${_currentEthPrice.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  _buildPriceTrend(_ethPriceHistory, Colors.blueAccent),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
                       SizedBox(height: 24),
                       
-                      // Buy Bitcoin section
+                      // Buy/Sell Bitcoin UI
                       Text(
-                        'Buy Bitcoin',
+                        'Bitcoin Trading',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -645,63 +820,91 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                         ),
                       ),
                       SizedBox(height: 8),
-                      Card(
-                        color: Colors.grey[850],
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Available USD: \$${_usdBalance.toStringAsFixed(2)}',
-                                style: TextStyle(color: _matrixGreen, fontSize: 16),
-                              ),
-                              Text(
-                                'Max BTC you can buy: ${maxBtcCanBuy.toStringAsFixed(8)}',
-                                style: TextStyle(color: Colors.white70, fontSize: 14),
-                              ),
-                              SizedBox(height: 16),
-                              TextField(
-                                controller: _buyBtcAmountController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                style: const TextStyle(color: Colors.white),
-                                decoration: InputDecoration(
-                                  labelText: 'BTC Amount',
-                                  labelStyle: const TextStyle(color: Colors.white70),
-                                  enabledBorder: const OutlineInputBorder(
-                                    borderSide: BorderSide(color: Colors.white24),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderSide: BorderSide(color: _matrixGreen),
-                                  ),
-                                  suffix: const Text('BTC', style: TextStyle(color: Colors.white70)),
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton(
+                      Row(
+                        children: [
+                          // Buy Bitcoin
+                          Expanded(
+                            child: Card(
+                              color: Colors.grey[850],
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Buy Bitcoin',
+                                      style: TextStyle(color: Colors.white, fontSize: 16),
+                                    ),
+                                    SizedBox(height: 8),
+                                    TextField(
+                                      controller: _buyBtcAmountController,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      style: const TextStyle(color: Colors.white),
+                                      decoration: InputDecoration(
+                                        labelText: 'BTC Amount',
+                                        labelStyle: const TextStyle(color: Colors.white70),
+                                        suffix: const Text('BTC', style: TextStyle(color: Colors.white70)),
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    ElevatedButton(
                                       onPressed: _usdBalance > 0 ? _buyBitcoin : null,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.green,
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
                                       ),
-                                      child: const Text('Buy Bitcoin'),
+                                      child: const Text('Buy'),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
+                          SizedBox(width: 8),
+                          // Sell Bitcoin
+                          Expanded(
+                            child: Card(
+                              color: Colors.grey[850],
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Sell Bitcoin',
+                                      style: TextStyle(color: Colors.white, fontSize: 16),
+                                    ),
+                                    SizedBox(height: 8),
+                                    TextField(
+                                      controller: _sellBtcAmountController,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      style: const TextStyle(color: Colors.white),
+                                      decoration: InputDecoration(
+                                        labelText: 'BTC Amount',
+                                        labelStyle: const TextStyle(color: Colors.white70),
+                                        suffix: const Text('BTC', style: TextStyle(color: Colors.white70)),
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    ElevatedButton(
+                                      onPressed: _bitcoinCount > 0 ? _sellBitcoin : null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                      child: const Text('Sell'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       
                       SizedBox(height: 24),
                       
-                      // Sell Bitcoin section - FIXED: Make sure this is properly implemented
+                      // Buy/Sell Ethereum UI
                       Text(
-                        'Sell Bitcoin',
+                        'Ethereum Trading',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -709,58 +912,90 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                         ),
                       ),
                       SizedBox(height: 8),
-                      Card(
-                        color: Colors.grey[850],
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Available BTC: $_bitcoinCount',
-                                style: const TextStyle(color: Colors.amber, fontSize: 16),
-                              ),
-                              SizedBox(height: 16),
-                              TextField(
-                                controller: _sellBtcAmountController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                style: const TextStyle(color: Colors.white),
-                                decoration: InputDecoration(
-                                  labelText: 'BTC Amount',
-                                  labelStyle: const TextStyle(color: Colors.white70),
-                                  enabledBorder: const OutlineInputBorder(
-                                    borderSide: BorderSide(color: Colors.white24),
-                                  ),
-                                  focusedBorder: const OutlineInputBorder(
-                                    borderSide: BorderSide(color: Colors.amber),
-                                  ),
-                                  suffix: const Text('BTC', style: TextStyle(color: Colors.white70)),
+                      Row(
+                        children: [
+                          // Buy Ethereum
+                          Expanded(
+                            child: Card(
+                              color: Colors.grey[850],
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Buy Ethereum',
+                                      style: TextStyle(color: Colors.white, fontSize: 16),
+                                    ),
+                                    SizedBox(height: 8),
+                                    TextField(
+                                      controller: _buyEthAmountController,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      style: const TextStyle(color: Colors.white),
+                                      decoration: InputDecoration(
+                                        labelText: 'ETH Amount',
+                                        labelStyle: const TextStyle(color: Colors.white70),
+                                        suffix: const Text('ETH', style: TextStyle(color: Colors.white70)),
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    ElevatedButton(
+                                      onPressed: _usdBalance > 0 ? _buyEthereum : null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                      ),
+                                      child: const Text('Buy'),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      onPressed: _bitcoinCount > 0 ? _sellBitcoin : null,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          // Sell Ethereum
+                          Expanded(
+                            child: Card(
+                              color: Colors.grey[850],
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Sell Ethereum',
+                                      style: TextStyle(color: Colors.white, fontSize: 16),
+                                    ),
+                                    SizedBox(height: 8),
+                                    TextField(
+                                      controller: _sellEthAmountController,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      style: const TextStyle(color: Colors.white),
+                                      decoration: InputDecoration(
+                                        labelText: 'ETH Amount',
+                                        labelStyle: const TextStyle(color: Colors.white70),
+                                        suffix: const Text('ETH', style: TextStyle(color: Colors.white70)),
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    ElevatedButton(
+                                      onPressed: _ethereumCount > 0 ? _sellEthereum : null,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.redAccent,
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
                                       ),
-                                      child: const Text('Sell Bitcoin'),
+                                      child: const Text('Sell'),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
                 ),
                 
-                // Bitcoin Tab - Price chart and analysis - FIX LAYOUT ISSUES
+                // Bitcoin Tab - Price chart and analysis
                 SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -812,9 +1047,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                       
                       SizedBox(height: 20),
                       
-                      // Timeframe selector - FIX: Ensure contained within width bounds
+                      // Timeframe selector
                       Container(
-                        height: 140,
+                        height: 60,
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Row(
@@ -831,7 +1066,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                       
                       SizedBox(height: 20),
                       
-                      // Price chart - Use SizedBox with fixed height instead of Expanded
+                      // Price chart
                       Container(
                         height: 300, // Fixed height ensures the chart is visible
                         decoration: BoxDecoration(
@@ -839,7 +1074,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.grey[800]!),
                         ),
-                        child: _buildPriceChart(),
+                        child: _buildPriceChart(_btcPriceHistory, _minBtcPrice, _maxBtcPrice, _matrixGreen),
                       ),
                       
                       SizedBox(height: 20),
@@ -883,6 +1118,130 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                     ],
                   ),
                 ),
+                
+                // Ethereum Tab - Price chart and analysis
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Ethereum Price',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                '\$${_currentEthPrice.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey[800]!),
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                              child: Text(
+                                'ETH/USD',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Timeframe selector
+                      Container(
+                        height: 60,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildTimeframeButton('1H', _selectedEthTimeframe == '1H', Colors.blueAccent),
+                              _buildTimeframeButton('24H', _selectedEthTimeframe == '24H', Colors.blueAccent),
+                              _buildTimeframeButton('1W', _selectedEthTimeframe == '1W', Colors.blueAccent),
+                              _buildTimeframeButton('1M', _selectedEthTimeframe == '1M', Colors.blueAccent),
+                              _buildTimeframeButton('1Y', _selectedEthTimeframe == '1Y', Colors.blueAccent),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Price chart
+                      Container(
+                        height: 300, // Fixed height ensures the chart is visible
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[800]!),
+                        ),
+                        child: _buildPriceChart(_ethPriceHistory, _minEthPrice, _maxEthPrice, Colors.blueAccent),
+                      ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Market statistics
+                      Card(
+                        color: Colors.grey[900],
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Market Statistics',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildStatItem('24h High', '\$${(_currentEthPrice * 1.05).toStringAsFixed(2)}'),
+                                  _buildStatItem('24h Low', '\$${(_currentEthPrice * 0.95).toStringAsFixed(2)}'),
+                                ],
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildStatItem('All-Time High', '\$6,000.00'),
+                                  _buildStatItem('All-Time Low', '\$3,000.00'),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -891,21 +1250,26 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     );
   }
   
-  Widget _buildTimeframeButton(String timeframe, bool isSelected) {
+  // Updated to accept optional color parameter
+  Widget _buildTimeframeButton(String timeframe, bool isSelected, [Color color = const Color(0xFF00FF41)]) {
     return GestureDetector(
       onTap: () {
         setState(() {
-          _selectedTimeframe = timeframe;
+          if (color == Colors.blueAccent) {
+            _selectedEthTimeframe = timeframe;
+          } else {
+            _selectedTimeframe = timeframe;
+          }
         });
       },
       child: Container(
         margin: const EdgeInsets.only(right: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? _matrixGreen : Colors.grey[900],
+          color: isSelected ? color : Colors.grey[900],
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? _matrixGreen : Colors.grey[800]!,
+            color: isSelected ? color : Colors.grey[800]!,
             width: 1,
           ),
         ),
