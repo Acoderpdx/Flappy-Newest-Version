@@ -280,13 +280,14 @@ class _GameScreenState extends State<GameScreen> {
   double _portalY = 0.0;
   final double _portalSize = 49.0;
   int _gapsSinceLastPortal = 0;
-  final int _portalGapInterval = 5;
+  final int _portalGapInterval = 10; // Changed from 5 to 10 to make portals twice as rare
   final Random _rand = Random();
 
   // --- Red Mode Cash Out logic ---
   bool _redModeCashOutEnabled = false; // Show cash out switch in red mode
   bool _redModeCashedOut = false;      // Track if player cashed out
   int _redModeCashedOutRedPills = 0;   // Amount cashed out
+  int _currentRoundRedPills = 0;       // Track red pills collected this round only
 
   // --- Add PnL history tracking ---
   List<double> lionsManePnlHistory = [0];
@@ -367,6 +368,7 @@ class _GameScreenState extends State<GameScreen> {
     _redModeCashOutEnabled = false;
     _redModeCashedOut = false;
     _redModeCashedOutRedPills = 0;
+    _currentRoundRedPills = 0;  // Reset current round pills counter
 
     glueSticks.clear();
     lionsManes.clear();
@@ -1120,10 +1122,11 @@ class _GameScreenState extends State<GameScreen> {
                     _pongMiniGameSwitchValue = false;
                   });
                 },
-                onBitcoinCollected: () {
+                // Update the callback name and implementation
+                onEthereumCollected: () {
                   setState(() {
-                    bitcoinCollected += 1;
-                    _updatePnlHistory(); // <-- Add this
+                    ethereumCollected += 1;
+                    _updatePnlHistory();
                   });
                 },
               ),
@@ -1328,6 +1331,7 @@ class _GameScreenState extends State<GameScreen> {
           setState(() {
             redPill.collected = true;
             redPillCollected += 1;
+            _currentRoundRedPills += 1;  // Also increment round-specific counter
             _updatePnlHistory();
           });
         }
@@ -1395,13 +1399,14 @@ class _GameScreenState extends State<GameScreen> {
     if (!redWhiteBlackFilter || gameOver || _redModeCashedOut) return;
     setState(() {
       _redModeCashedOut = true;
-      _redModeCashedOutRedPills = redPillCollected;
+      _redModeCashedOutRedPills = _currentRoundRedPills;  // Store cashed out pills
+      _currentRoundRedPills = 0;  // Reset as we've secured them
       gameOver = true;
       gameLoopTimer?.cancel();
     });
   }
 
-  // Add the missing checkCollision method
+  // Fix the checkCollision method to only deduct current round red pills
   bool checkCollision() {
     final screenSize = MediaQuery.of(context).size;
 
@@ -1443,10 +1448,12 @@ class _GameScreenState extends State<GameScreen> {
         screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2,
       );
       if (birdRect.overlaps(topRect) || birdRect.overlaps(bottomRect)) {
-        // --- Red Mode: lose all red pills if not cashed out ---
+        // --- Red Mode: lose only current round red pills if not cashed out ---
         if (redWhiteBlackFilter && !_redModeCashedOut) {
           setState(() {
-            redPillCollected = 0;
+            redPillCollected -= _currentRoundRedPills;  // Only deduct current round pills
+            redPillCollected = redPillCollected.clamp(0, 999999);  // Ensure not negative
+            _currentRoundRedPills = 0;  // Reset the counter
           });
         }
         return true;
