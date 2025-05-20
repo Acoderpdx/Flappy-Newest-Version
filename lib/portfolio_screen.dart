@@ -125,29 +125,31 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     return _usdBalance + btcValue + lionsManeValue + redPillValue;
   }
   
-  // Exchange Lions Mane to USD
+  // Exchange Lions Mane to USD - Fix unlimited exchange issue
   void _exchangeLionsMane() {
-    if (widget.lionsManeCollected > 0) {
+    if (widget.lionsManeCollected > 0) { // Changed from lionsManeCollected to widget.lionsManeCollected
       double usdAmount = _lionsManeRate;
       if (widget.onTrade != null) {
         widget.onTrade!(-1, 0, 0, usdAmount);
+      } else {
+        setState(() {
+          _usdBalance += usdAmount;
+        });
       }
-      setState(() {
-        _usdBalance += usdAmount;
-      });
     }
   }
   
-  // Exchange Red Pill to USD
+  // Exchange Red Pill to USD - Fix unlimited exchange issue
   void _exchangeRedPill() {
-    if (widget.redPillCollected > 0) {
+    if (widget.redPillCollected > 0) { // Changed from redPillCollected to widget.redPillCollected
       double usdAmount = _redPillRate;
       if (widget.onTrade != null) {
         widget.onTrade!(0, -1, 0, usdAmount);
+      } else {
+        setState(() {
+          _usdBalance += usdAmount;
+        });
       }
-      setState(() {
-        _usdBalance += usdAmount;
-      });
     }
   }
   
@@ -450,9 +452,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
             if (canExchange && onExchange != null) ...[
               SizedBox(height: 16),
               ElevatedButton(
-                onPressed: onExchange,
+                onPressed: quantity > 0 ? onExchange : null, // Disable button when quantity is 0
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _matrixGreen,
+                  backgroundColor: quantity > 0 ? _matrixGreen : Colors.grey,
                   foregroundColor: _matrixBlack,
                 ),
                 child: Text('Exchange for USD'),

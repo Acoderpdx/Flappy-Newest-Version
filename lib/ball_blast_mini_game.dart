@@ -54,6 +54,12 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
   List<_DroppedBitcoin> droppedBitcoins = [];
   int bitcoinCollected = 0; // <-- Track collected in this mini-game
 
+  // --- Coin flip state ---
+  bool showCoinFlip = false;
+  int coinFlipBitcoins = 0;
+  bool? coinFlipResult; // true = win, false = lose, null = not flipped
+  bool coinFlipInProgress = false;
+
   @override
   void initState() {
     super.initState();
@@ -357,6 +363,22 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
   @override
   Widget build(BuildContext context) {
     _lastSize = MediaQuery.of(context).size;
+
+    // --- Show coin flip overlay if needed ---
+    if ((gameOver && bitcoinCollected > 0 && !showCoinFlip) ||
+        (gameOver && bitcoinCollected > 0 && showCoinFlip)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!showCoinFlip) {
+          setState(() {
+            showCoinFlip = true;
+            coinFlipBitcoins = bitcoinCollected;
+            coinFlipResult = null;
+            coinFlipInProgress = false;
+          });
+        }
+      });
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -375,203 +397,290 @@ class _BallBlastMiniGameScreenState extends State<BallBlastMiniGameScreen> {
           ),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final size = Size(constraints.maxWidth, constraints.maxHeight);
-          final cannonLeft = cannonX * size.width - cannonWidth / 2;
-          final cannonTop = size.height - cannonHeight;
-          return GestureDetector(
-            onHorizontalDragUpdate: (details) => _onHorizontalDragUpdate(details, constraints),
-            child: Stack(
-              children: [
-                // --- Add scrolling background ---
-                Positioned.fill(
-                  child: ScrollingBackground(scrollSpeed: 80.0),
-                ),
-                // Balls, projectiles, particles
-                CustomPaint(
-                  size: size,
-                  painter: _BallBlastPainter(
-                    projectiles: projectiles,
-                    balls: balls,
-                    particles: particles,
-                  ),
-                ),
-                // Draw all balls as isreal.png images
-                ...balls.map((b) {
-                  final left = b.x - b.radius;
-                  final top = b.y - b.radius;
-                  final sizePx = b.radius * 2;
-                  return Stack(
-                    children: [
-                      Positioned(
-                        left: left,
-                        top: top,
-                        width: sizePx,
-                        height: sizePx,
-                        child: Image.asset(
-                          'assets/images/isreal.png',
-                          width: sizePx,
-                          height: sizePx,
-                        ),
+      body: Stack(
+        children: [
+          // --- Add scrolling background ---
+          Positioned.fill(
+            child: ScrollingBackground(scrollSpeed: 80.0),
+          ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final size = Size(constraints.maxWidth, constraints.maxHeight);
+              final cannonLeft = cannonX * size.width - cannonWidth / 2;
+              final cannonTop = size.height - cannonHeight;
+              
+              return GestureDetector(
+                // Fix horizontal drag detection to ensure it captures all drags
+                onHorizontalDragUpdate: (details) {
+                  setState(() {
+                    cannonX = (details.localPosition.dx / size.width).clamp(0.0, 1.0);
+                  });
+                },
+                child: Stack(
+                  children: [
+                    // Balls, projectiles, particles
+                    CustomPaint(
+                      size: size,
+                      painter: _BallBlastPainter(
+                        projectiles: projectiles,
+                        balls: balls,
+                        particles: particles,
                       ),
-                      // Health counter to the right of the asset
-                      Positioned(
-                        left: left + sizePx + 4,
-                        top: top + sizePx / 2 - (b.radius * 0.45),
-                        child: Text(
-                          '${b.health}',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: b.radius * 0.9,
-                            shadows: [Shadow(blurRadius: 4, color: Colors.black)],
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-                // --- Dropped bitcoins ---
-                ...droppedBitcoins.where((btc) => !btc.collected).map((btc) {
-                  return Positioned(
-                    left: btc.x - 19,
-                    top: btc.y - 19,
-                    width: 38,
-                    height: 38,
-                    child: Image.asset(
-                      'assets/images/bitcoin.png',
-                      width: 38,
-                      height: 38,
                     ),
-                  );
-                }),
-                // Cannon (bird.png)
-                Positioned(
-                  left: cannonLeft,
-                  top: cannonTop,
-                  width: cannonWidth,
-                  height: cannonHeight,
-                  child: Image.asset(
-                    'assets/images/bird.png',
-                    width: cannonWidth,
-                    height: cannonHeight,
-                  ),
-                ),
-                // --- Bitcoin counter display (top right) ---
-                Positioned(
-                  top: 24,
-                  right: 24,
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        'assets/images/bitcoin.png',
-                        width: 28,
-                        height: 28,
-                        errorBuilder: (context, error, stackTrace) => Icon(Icons.currency_bitcoin, color: Colors.amber),
-                      ),
-                      SizedBox(width: 4),
-                      Text(
-                        '$bitcoinCollected',
-                        style: TextStyle(
-                          color: Colors.amber,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          shadows: [
-                            Shadow(
-                              offset: Offset(1, 1),
-                              blurRadius: 4,
-                              color: Colors.black54,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Score and round display
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 24,
-                  child: Center(
-                    child: Column(
-                      children: [
-                        Text(
-                          'Score: $score',
-                          style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          'Round: $currentRound / $maxRounds',
-                          style: TextStyle(color: Colors.white70, fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                        if (roundTransition)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 12.0),
-                            child: Text(
-                              'Round ${currentRound + 1} starting...',
-                              style: TextStyle(color: Colors.amber, fontSize: 22, fontWeight: FontWeight.bold),
+                    // Draw all balls as isreal.png images
+                    ...balls.map((b) {
+                      final left = b.x - b.radius;
+                      final top = b.y - b.radius;
+                      final sizePx = b.radius * 2;
+                      return Stack(
+                        children: [
+                          Positioned(
+                            left: left,
+                            top: top,
+                            width: sizePx,
+                            height: sizePx,
+                            child: Image.asset(
+                              'assets/images/isreal.png',
+                              width: sizePx,
+                              height: sizePx,
                             ),
                           ),
-                        if (gameOver && currentRound == maxRounds && ballsToClear <= 0)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 12.0),
+                          // Health counter to the right of the asset
+                          Positioned(
+                            left: left + sizePx + 4,
+                            top: top + sizePx / 2 - (b.radius * 0.45),
                             child: Text(
-                              'You Win!',
-                              style: TextStyle(color: Colors.greenAccent, fontSize: 28, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Game over overlay
-                if (gameOver)
-                  Positioned.fill(
-                    child: Container(
-                      color: Colors.black54,
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              (currentRound == maxRounds && ballsToClear <= 0)
-                                  ? 'Victory!'
-                                  : 'Game Over',
+                              '${b.health}',
                               style: TextStyle(
-                                  color: (currentRound == maxRounds && ballsToClear <= 0)
-                                      ? Colors.green
-                                      : Colors.red,
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.bold),
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: b.radius * 0.9,
+                                shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+                              ),
                             ),
-                            SizedBox(height: 16),
-                            Text('Score: $score', style: TextStyle(color: Colors.white, fontSize: 24)),
-                            SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _startGame,
-                              child: Text('Play Again'),
-                            ),
-                            SizedBox(height: 8),
-                            ElevatedButton(
-                              onPressed: () {
-                                if (widget.onClose != null) {
-                                  widget.onClose!();
-                                } else {
-                                  Navigator.pop(context);
-                                }
-                              },
-                              child: Text('Exit'),
-                            ),
-                          ],
+                          ),
+                        ],
+                      );
+                    }),
+                    // --- Dropped bitcoins ---
+                    ...droppedBitcoins.where((btc) => !btc.collected).map((btc) {
+                      return Positioned(
+                        left: btc.x - 19,
+                        top: btc.y - 19,
+                        width: 38,
+                        height: 38,
+                        child: Image.asset(
+                          'assets/images/bitcoin.png',
+                          width: 38,
+                          height: 38,
                         ),
+                      );
+                    }),
+                    // Cannon (bird.png)
+                    Positioned(
+                      left: cannonLeft,
+                      top: cannonTop,
+                      width: cannonWidth,
+                      height: cannonHeight,
+                      child: Image.asset(
+                        'assets/images/bird.png',
+                        width: cannonWidth,
+                        height: cannonHeight,
+                        errorBuilder: (context, error, stackTrace) => 
+                            Container(
+                              width: cannonWidth,
+                              height: cannonHeight,
+                              color: Colors.green, // Fallback color to make it visible
+                              child: Center(child: Icon(Icons.warning, color: Colors.white)),
+                            ),
                       ),
                     ),
+                    // Add visible projectiles
+                    ...projectiles.map((p) {
+                      return Positioned(
+                        left: p.x - projectileRadius,
+                        top: p.y - projectileRadius,
+                        child: Container(
+                          width: projectileRadius * 2,
+                          height: projectileRadius * 2,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: () {
+                              switch (p.colorIndex) {
+                                case 0: return const Color(0xFF287f24); // green
+                                case 1: return const Color(0xFFe5322c); // red
+                                case 2: return Colors.white;
+                                case 3:
+                                default: return Colors.black;
+                              }
+                            }(),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              );
+            },
+          ),
+          
+          // --- Bitcoin counter display (top right) ---
+          Positioned(
+            top: 24,
+            right: 24,
+            child: Row(
+              children: [
+                Image.asset(
+                  'assets/images/bitcoin.png',
+                  width: 28,
+                  height: 28,
+                  errorBuilder: (context, error, stackTrace) => Icon(Icons.currency_bitcoin, color: Colors.amber),
+                ),
+                SizedBox(width: 4),
+                Text(
+                  '$bitcoinCollected',
+                  style: TextStyle(
+                    color: Colors.amber,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(1, 1),
+                        blurRadius: 4,
+                        color: Colors.black54,
+                      ),
+                    ],
                   ),
+                ),
               ],
             ),
-          );
-        },
+          ),
+          // Score and round display
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 24,
+            child: Center(
+              child: Column(
+                children: [
+                  Text(
+                    'Score: $score',
+                    style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Round: $currentRound / $maxRounds',
+                    style: TextStyle(color: Colors.white70, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  if (roundTransition)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Text(
+                        'Round ${currentRound + 1} starting...',
+                        style: TextStyle(color: Colors.amber, fontSize: 22, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  if (gameOver && currentRound == maxRounds && ballsToClear <= 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Text(
+                        'You Win!',
+                        style: TextStyle(color: Colors.greenAccent, fontSize: 28, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          // Game over overlay
+          if (gameOver)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black54,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        (currentRound == maxRounds && ballsToClear <= 0)
+                            ? 'Victory!'
+                            : 'Game Over',
+                        style: TextStyle(
+                            color: (currentRound == maxRounds && ballsToClear <= 0)
+                                ? Colors.green
+                                : Colors.red,
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 16),
+                      Text('Score: $score', style: TextStyle(color: Colors.white, fontSize: 24)),
+                      SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _startGame,
+                        child: Text('Play Again'),
+                      ),
+                      SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          if (widget.onClose != null) {
+                            widget.onClose!();
+                          } else {
+                            Navigator.pop(context);
+                          }
+                        },
+                        child: Text('Exit'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          // --- Coin flip overlay ---
+          if (showCoinFlip)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black87,
+                child: Center(
+                  child: CoinFlipOverlay(
+                    bitcoins: coinFlipBitcoins,
+                    result: coinFlipResult,
+                    inProgress: coinFlipInProgress,
+                    onFlip: () async {
+                      if (coinFlipInProgress || coinFlipResult != null) return;
+                      setState(() {
+                        coinFlipInProgress = true;
+                      });
+                      await Future.delayed(const Duration(seconds: 1));
+                      final win = Random().nextBool();
+                      setState(() {
+                        coinFlipResult = win;
+                        coinFlipInProgress = false;
+                      });
+                      await Future.delayed(const Duration(seconds: 1));
+                      if (win) {
+                        if (widget.onBitcoinCollected != null) {
+                          for (int i = 0; i < coinFlipBitcoins; i++) {
+                            widget.onBitcoinCollected!();
+                          }
+                        }
+                      }
+                    },
+                    onOptOut: () {
+                      setState(() {
+                        showCoinFlip = false;
+                      });
+                      if (widget.onClose != null) widget.onClose!();
+                    },
+                    onExit: () {
+                      setState(() {
+                        showCoinFlip = false;
+                      });
+                      if (widget.onClose != null) widget.onClose!();
+                    },
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -668,4 +777,100 @@ class _DroppedBitcoin {
     required this.vx,
     this.collected = false,
   });
+}
+
+// --- Coin Flip Overlay Widget ---
+class CoinFlipOverlay extends StatelessWidget {
+  final int bitcoins;
+  final bool? result; // true = win, false = lose, null = not flipped
+  final bool inProgress;
+  final VoidCallback onFlip;
+  final VoidCallback onOptOut;
+  final VoidCallback onExit;
+
+  const CoinFlipOverlay({
+    Key? key,
+    required this.bitcoins,
+    required this.result,
+    required this.inProgress,
+    required this.onFlip,
+    required this.onOptOut,
+    required this.onExit,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    String message;
+    if (result == null) {
+      message = "Gamble all $bitcoins bitcoin${bitcoins == 1 ? '' : 's'}?\nWin: Double it!\nLose: Lose it all!";
+    } else if (result == true) {
+      message = "You won!\nYou doubled your bitcoins!";
+    } else {
+      message = "You lost!\nAll your bitcoins are gone!";
+    }
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Image.asset(
+          'assets/images/bitcoin.png',
+          width: 120,
+          height: 120,
+        ),
+        const SizedBox(height: 24),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: result == null
+                ? Colors.amber
+                : (result == true ? Colors.green : Colors.red),
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 32),
+        if (result == null)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton.icon(
+                onPressed: inProgress ? null : onFlip,
+                icon: Icon(Icons.casino),
+                label: Text('Coin Flip'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.black,
+                  textStyle: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                ),
+              ),
+              const SizedBox(width: 24),
+              ElevatedButton.icon(
+                onPressed: inProgress ? null : onOptOut,
+                icon: Icon(Icons.exit_to_app),
+                label: Text('Opt Out'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[800],
+                  foregroundColor: Colors.white,
+                  textStyle: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                ),
+              ),
+            ],
+          ),
+        if (result != null)
+          ElevatedButton.icon(
+            onPressed: onExit,
+            icon: Icon(Icons.check),
+            label: Text('Continue'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              textStyle: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            ),
+          ),
+      ],
+    );
+  }
 }
