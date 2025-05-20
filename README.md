@@ -74,7 +74,7 @@ This project is a custom version of the classic Flappy Bird game built using Flu
 
 4. Create and switch to a new branch (e.g., "lions-mane-pooping-title-screen"):
    ```
-   git checkout -b lions-mane-pooping-title-screen
+   git checkout -b save-before-house-update
    ```
 
 5. Push the new branch to your remote repository (replace "origin" with your remote name if different):

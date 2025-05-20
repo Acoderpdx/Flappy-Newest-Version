@@ -39,6 +39,11 @@ flutter:
     - assets/images/isreal.png
     - assets/images/gamble.png
     - assets/images/tate_endscreen.png
+    - assets/images/house1.png
+    - assets/images/house2.png
+    - assets/images/house3.png
+    - assets/images/house4.png
+    - assets/images/house5.png
   fonts:
     - family: Flappybirdy
       fonts:

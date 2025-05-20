@@ -8,6 +8,7 @@ import 'ball_blast_mini_game.dart';
 import 'dart:math'; // <-- Add this import
 import 'dart:io'; // <-- Add this import
 import 'portfolio_screen.dart';
+import 'property_screen.dart';
 
 void main() {
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -295,6 +296,9 @@ class _GameScreenState extends State<GameScreen> {
 
   // Add USD currency to track dollars
   double usdBalance = 0.0;
+
+  // Add property screen state
+  bool _propertyScreenSwitchValue = false;
 
   @override
   void initState() {
@@ -1159,7 +1163,17 @@ class _GameScreenState extends State<GameScreen> {
                   });
                 },
               ),
-            if (gameOver && !_showMiniGame && !_showPongMiniGame && !_showBallBlastMiniGame && !_portfolioSwitchValue)
+            if (_propertyScreenSwitchValue)
+              PropertyScreen(
+                usdBalance: usdBalance,
+                onUpdateBalance: (usdDelta) {
+                  setState(() {
+                    usdBalance += usdDelta;
+                    _updatePnlHistory();
+                  });
+                },
+              ),
+            if (gameOver && !_showMiniGame && !_showPongMiniGame && !_showBallBlastMiniGame && !_portfolioSwitchValue && !_propertyScreenSwitchValue)
               Positioned.fill(
                 child: EndScreenOverlay(
                   score: score,
@@ -1185,6 +1199,7 @@ class _GameScreenState extends State<GameScreen> {
                   redWhiteBlackFilter: redWhiteBlackFilter,
                   miniGameSwitchValue: _miniGameSwitchValue,
                   ballBlastMiniGameSwitchValue: _ballBlastMiniGameSwitchValue,
+                  propertySwitchValue: _propertyScreenSwitchValue,
                   onRedModeChanged: (val) {
                     setState(() {
                       redWhiteBlackFilter = val;
@@ -1216,6 +1231,12 @@ class _GameScreenState extends State<GameScreen> {
                   onPortfolioSwitchChanged: (val) {
                     setState(() {
                       _portfolioSwitchValue = val;
+                    });
+                  },
+                  // --- Add property switch wiring ---
+                  onPropertySwitchChanged: (val) {
+                    setState(() {
+                      _propertyScreenSwitchValue = val;
                     });
                   },
                 ),
@@ -1440,6 +1461,9 @@ class EndScreenOverlay extends StatefulWidget {
   // --- Add portfolio switch value and callback ---
   final bool portfolioSwitchValue;
   final ValueChanged<bool> onPortfolioSwitchChanged;
+  // --- Add property switch value and callback ---
+  final bool propertySwitchValue;
+  final ValueChanged<bool> onPropertySwitchChanged;
 
   const EndScreenOverlay({
     Key? key,
@@ -1455,11 +1479,13 @@ class EndScreenOverlay extends StatefulWidget {
     required this.onMiniGameSwitchChanged,
     required this.ballBlastMiniGameSwitchValue,
     required this.onBallBlastMiniGameSwitchChanged,
-    // --- Add portfolio switch value and callback ---
     required this.portfolioSwitchValue,
     required this.onPortfolioSwitchChanged,
+    required this.propertySwitchValue,
+    required this.onPropertySwitchChanged,
   }) : super(key: key);
 
+  @override
   State<EndScreenOverlay> createState() => _EndScreenOverlayState();
 }
 
@@ -1476,10 +1502,11 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    if (!delayStarted && !widget.canRestart) {
-      delayStarted = true;
-      widget.onStartDelay();
-    }
+    // --- Add property switch value and callback ---
+    final bool propertySwitchValue = false;
+    final ValueChanged<bool> onPropertySwitchChanged;
+
+    // --- Ground under everything ---
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -1677,8 +1704,8 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
                   style: TextStyle(
                     fontFamily: 'Flappybirdy',
                     fontSize: 54,
-                    color: Colors.white,
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                     shadows: [
                       Shadow(
                         offset: Offset(2, 2),
@@ -1746,7 +1773,39 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
             ),
           ),
         ),
-        // ...existing code...
+        // --- Property Switch (next to Portfolio Switch, house icon) ---
+        Positioned(
+          bottom: 40,
+          right: 0,
+          child: GestureDetector(
+            onTap: () => widget.onPropertySwitchChanged(!widget.propertySwitchValue),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: widget.propertySwitchValue ? Colors.green : Colors.transparent,
+                  width: 4,
+                ),
+                boxShadow: [
+                  if (widget.propertySwitchValue)
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.5),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                ],
+              ),
+              padding: const EdgeInsets.all(6),
+              child: Image.asset(
+                'assets/images/house1.png',
+                width: 38,
+                height: 38,
+                errorBuilder: (context, error, stackTrace) =>
+                    Icon(Icons.home, color: Colors.white, size: 38),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1756,6 +1815,7 @@ class ScrollingBackground extends StatefulWidget {
   final double scrollSpeed; // pixels per second
 
   const ScrollingBackground({Key? key, this.scrollSpeed = 80.0}) : super(key: key);
+  
   @override
   State<ScrollingBackground> createState() => _ScrollingBackgroundState();
 }
@@ -1774,7 +1834,7 @@ class _ScrollingBackgroundState extends State<ScrollingBackground> with SingleTi
     )..addListener(_tick)
      ..repeat();
   }
-
+  
   void _tick() {
     final now = _controller.lastElapsedDuration?.inMilliseconds.toDouble() ?? 0.0;
     if (_lastTick == null) {
@@ -1864,7 +1924,7 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
   final double flapVelocity = -0.11;
   final double maxFallSpeed = 0.035;
   final double baseY = 0.0; // baseline for bird's Y position
-
+  
   // Flap 3 times per second as bird moves left to right
   final int flapsPerSecond = 3;
   late double flapInterval;
@@ -1922,13 +1982,14 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
           ));
           _lastDropTime = t;
         }
-
+        
         // --- Animate lions mane collectibles falling with gravity like bird ---
         for (final mane in _lionsManes) {
           mane.vy += collectibleGravity;
           if (mane.vy > collectibleMaxFallSpeed) mane.vy = collectibleMaxFallSpeed;
           mane.y += mane.vy;
         }
+        
         // Remove collectibles that fall off the bottom
         _lionsManes.removeWhere((mane) => mane.y > 1.2);
       });
@@ -1938,12 +1999,11 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
         birdY = baseY;
         velocity = 0.0;
         lastFlapX = -1.2;
-        _lastDropTime = 0.0;
         _lionsManes.clear();
       }
     });
   }
-
+  
   @override
   void dispose() {
     _controller.dispose();

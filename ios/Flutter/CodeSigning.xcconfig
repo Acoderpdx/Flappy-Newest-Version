@@ -1,0 +1,5 @@
+// Explicit code signing settings for Flutter iOS builds
+DEVELOPMENT_TEAM = V2T5R63NKA
+CODE_SIGN_IDENTITY = Apple Development
+CODE_SIGN_STYLE = Automatic
+PROVISIONING_PROFILE_SPECIFIER = 
