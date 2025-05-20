@@ -44,9 +44,19 @@ flutter:
     - assets/images/house3.png
     - assets/images/house4.png
     - assets/images/house5.png
+    - assets/images/house_background.png
     - assets/images/eth.png
     - assets/images/solana.png
-    - assets/images/house_background.png
+    - assets/images/moderncastle1.png
+    - assets/images/moderncastle2.png
+    - assets/images/moderncastle3.png
+    - assets/images/moderncastle4.png
+    - assets/images/moderncastle5.png
+    - assets/images/ythouse1.png
+    - assets/images/ythouse2.png
+    - assets/images/ythouse3.png
+    - assets/images/ythouse4.png
+    - assets/images/ythouse5.png
   fonts:
     - family: Flappybirdy
       fonts:

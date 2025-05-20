@@ -305,7 +305,8 @@ class _GameScreenState extends State<GameScreen> {
 
   // Add property screen state
   bool _propertyScreenSwitchValue = false;
-  int _currentHouseLevel = 1;  // Add this to track the house level
+  int _currentHouseLevel = 0;  // Start with no house (level 0)
+  String _currentHouseType = ""; // Start with no house type selected
 
   @override
   void initState() {
@@ -1177,9 +1178,11 @@ class _GameScreenState extends State<GameScreen> {
                 },
                 // Add these two new parameters
                 currentHouseLevel: _currentHouseLevel,
-                onHouseLevelChanged: (newLevel) {
+                currentHouseType: _currentHouseType,
+                onHouseChanged: (level, type) {
                   setState(() {
-                    _currentHouseLevel = newLevel;
+                    _currentHouseLevel = level;
+                    _currentHouseType = type;
                   });
                 },
                 onClose: () {
