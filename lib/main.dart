@@ -191,12 +191,13 @@ class RedPill {
   }
 }
 
-class Bitcoin {
+// Replace Bitcoin class with Solana class
+class Solana {
   double xPosition;
   double yAlign;
   bool collected;
 
-  Bitcoin({required this.xPosition, required this.yAlign, this.collected = false});
+  Solana({required this.xPosition, required this.yAlign, this.collected = false});
 
   Widget build(BuildContext context) {
     if (collected) return SizedBox.shrink();
@@ -206,7 +207,7 @@ class Bitcoin {
       left: xPosition,
       top: yPx - 20,
       child: Image.asset(
-        'assets/images/bitcoin.png',
+        'assets/images/solana.png',
         width: 40,
         height: 40,
         errorBuilder: (context, error, stackTrace) {
@@ -247,11 +248,11 @@ class _GameScreenState extends State<GameScreen> {
   int lionsManeCollected = 0;
   int redPillCollected = 0;
   int bitcoinCollected = 0;
-  int ethereumCollected = 0; // Add Ethereum counter
-  int solanaCollected = 0; // Add Solana counter
+  int ethereumCollected = 0;
+  int solanaCollected = 0; // Keep this existing variable
   List<LionsMane> lionsManes = [];
   List<RedPill> redPills = [];
-  List<Bitcoin> bitcoins = [];
+  List<Solana> solanas = []; // Replace bitcoins with solanas
   int collectibleCycleCounter = 0;
   List<int> collectibleTypes = [];
 
@@ -369,8 +370,9 @@ class _GameScreenState extends State<GameScreen> {
     glueSticks.clear();
     lionsManes.clear();
     redPills.clear();
-    bitcoins.clear();
+    solanas.clear();
     collectibleCycleCounter = 0;
+    
     _portalVisible = false;
     _portalX = -1000;
     _portalY = 0.0;
@@ -411,27 +413,31 @@ class _GameScreenState extends State<GameScreen> {
       double gapCenterY = (gapTop + gapBottom) / 2;
       double yAlign = (gapCenterY - MediaQuery.of(context).size.height / 2) / (MediaQuery.of(context).size.height / 2);
 
-      if (collectibleCycleCounter < 5) {
+      // Fix collectible pattern: 5 Lions Mane followed by 1 Solana
+      if (collectibleCycleCounter % 6 != 5) {
+        // First 5 positions (0,1,2,3,4): spawn Lions Mane
         lionsManes.add(LionsMane(
           xPosition: xPos + 70 / 2 - 20,
           yAlign: yAlign,
         ));
-        bitcoins.add(Bitcoin(
-          xPosition: -1000,
+        solanas.add(Solana(
+          xPosition: -1000,  // Off-screen
           yAlign: 0,
           collected: true,
         ));
       } else {
+        // Position 5 (every 6th): spawn Solana
         lionsManes.add(LionsMane(
-          xPosition: -1000,
+          xPosition: -1000,  // Off-screen
           yAlign: 0,
           collected: true,
         ));
-        bitcoins.add(Bitcoin(
+        solanas.add(Solana(
           xPosition: xPos + 70 / 2 - 20,
           yAlign: yAlign,
         ));
       }
+      
       redPills.add(RedPill(
         xPosition: xPos + 70 / 2 - 17,
         yAlign: yAlign,
@@ -548,15 +554,15 @@ class _GameScreenState extends State<GameScreen> {
             break;
           }
         }
-        if (!bitcoins[i].collected) {
-          double yPx = screenSize.height / 2 + bitcoins[i].yAlign * (screenSize.height / 2);
-          Rect btcRect = Rect.fromLTWH(
-            bitcoins[i].xPosition,
+        if (!solanas[i].collected) {
+          double yPx = screenSize.height / 2 + solanas[i].yAlign * (screenSize.height / 2);
+          Rect solRect = Rect.fromLTWH(
+            solanas[i].xPosition,
             yPx - 20,
             40,
             40,
           );
-          if (portalRect.overlaps(btcRect)) {
+          if (portalRect.overlaps(solRect)) {
             overlapsCollectible = true;
             break;
           }
@@ -624,6 +630,15 @@ class _GameScreenState extends State<GameScreen> {
     _checkPortalCollision();
   }
 
+  // Simplify updateCollectibles() to only update positions
+  void updateCollectibles() {
+    for (int i = 0; i < glueSticks.length; i++) {
+      if (i < lionsManes.length) lionsManes[i].xPosition -= glueStickSpeed;
+      if (i < solanas.length) solanas[i].xPosition -= glueStickSpeed;
+      if (i < redPills.length) redPills[i].xPosition -= glueStickSpeed;
+    }
+  }
+
   void updateGlueSticks() {
     for (int i = 0; i < glueSticks.length; i++) {
       var glueStick = glueSticks[i];
@@ -634,6 +649,7 @@ class _GameScreenState extends State<GameScreen> {
         // Progressive difficulty: decrease spacing as score increases
         double spacing = currentGlueStickSpacing;
         glueStick.xPosition += spacing * glueSticks.length;
+        
         // --- Use dynamic gap ---
         double gap;
         if (redWhiteBlackFilter) {
@@ -641,6 +657,7 @@ class _GameScreenState extends State<GameScreen> {
         } else {
           gap = currentGapMin + _rand.nextDouble() * (currentGapMax - currentGapMin);
         }
+        
         // In red mode, increase randomness of verticalOffset
         if (redWhiteBlackFilter) {
           glueStick.verticalOffset = (_rand.nextDouble() * 2 - 1) * 120.0;
@@ -648,133 +665,93 @@ class _GameScreenState extends State<GameScreen> {
           glueStick.verticalOffset = (glueStick.verticalOffset.isNegative ? 1 : -1) * 50.0;
         }
         glueStick.hasScored = false;
-        // Also recycle collectibles
+        
+        // Calculate gap center position
         double gapTop = MediaQuery.of(context).size.height / 2 + glueStick.verticalOffset - gap / 2;
         double gapBottom = MediaQuery.of(context).size.height / 2 + glueStick.verticalOffset + gap / 2;
         double gapCenterY = (gapTop + gapBottom) / 2;
         double yAlign = (gapCenterY - MediaQuery.of(context).size.height / 2) / (MediaQuery.of(context).size.height / 2);
 
-        lionsManes[i] = LionsMane(
-          xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
-          yAlign: yAlign,
-          collected: false,
-        );
-        redPills[i] = RedPill(
-          xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
-          yAlign: yAlign,
-          collected: false,
-        );
-      }
-    }
-  }
-
-  // Only ONE updateCollectibles method should exist:
-  void updateCollectibles() {
-    final gap = 364.0;
-    final screenHeight = MediaQuery.of(context).size.height;
-    for (int i = 0; i < glueSticks.length; i++) {
-      lionsManes[i].xPosition -= glueStickSpeed;
-      redPills[i].xPosition -= glueStickSpeed;
-      bitcoins[i].xPosition -= glueStickSpeed;
-
-      bool collectibleOffscreen = (lionsManes[i].xPosition < -40 && bitcoins[i].xPosition < -40);
-
-      if (collectibleOffscreen) {
-        int stickIdx = i;
-        double newX = glueSticks[stickIdx].xPosition + glueStickSpacing * glueSticks.length;
-        double verticalOffset = glueSticks[stickIdx].verticalOffset;
-
-        double gapTop = screenHeight / 2 + verticalOffset - gap / 2;
-        double gapBottom = screenHeight / 2 + verticalOffset + gap / 2;
-        double gapCenterY = (gapTop + gapBottom) / 2;
-        double yAlign = (gapCenterY - screenHeight / 2) / (screenHeight / 2);
-
-        if (collectibleCycleCounter < 5) {
-          lionsManes[i] = LionsMane(
-            xPosition: newX + 70 / 2 - 20,
+        // Apply collectible pattern: 5 Lions Mane followed by 1 Solana
+        if (collectibleCycleCounter % 6 != 5) {
+          // First 5 positions (0,1,2,3,4): spawn Lions Mane
+          if (i < lionsManes.length) {
+            lionsManes[i] = LionsMane(
+              xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
+              yAlign: yAlign,
+              collected: false,
+            );
+          } else {
+            lionsManes.add(LionsMane(
+              xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
+              yAlign: yAlign,
+              collected: false,
+            ));
+          }
+          
+          if (i < solanas.length) {
+            solanas[i] = Solana(
+              xPosition: -1000,  // Off-screen
+              yAlign: 0,
+              collected: true,
+            );
+          } else {
+            solanas.add(Solana(
+              xPosition: -1000,  // Off-screen
+              yAlign: 0,
+              collected: true,
+            ));
+          }
+        } else {
+          // Position 5 (every 6th): spawn Solana
+          if (i < lionsManes.length) {
+            lionsManes[i] = LionsMane(
+              xPosition: -1000,  // Off-screen
+              yAlign: 0,
+              collected: true,
+            );
+          } else {
+            lionsManes.add(LionsMane(
+              xPosition: -1000,  // Off-screen
+              yAlign: 0,
+              collected: true,
+            ));
+          }
+          
+          if (i < solanas.length) {
+            solanas[i] = Solana(
+              xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
+              yAlign: yAlign,
+              collected: false,
+            );
+          } else {
+            solanas.add(Solana(
+              xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
+              yAlign: yAlign,
+              collected: false,
+            ));
+          }
+        }
+        
+        // Always ensure there's a red pill for red mode
+        if (i < redPills.length) {
+          redPills[i] = RedPill(
+            xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
             yAlign: yAlign,
             collected: false,
-          );
-          bitcoins[i] = Bitcoin(
-            xPosition: -1000,
-            yAlign: 0,
-            collected: true,
           );
         } else {
-          lionsManes[i] = LionsMane(
-            xPosition: -1000,
-            yAlign: 0,
-            collected: true,
-          );
-          bitcoins[i] = Bitcoin(
-            xPosition: newX + 70 / 2 - 20,
+          redPills.add(RedPill(
+            xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
             yAlign: yAlign,
             collected: false,
-          );
+          ));
         }
-        redPills[i] = RedPill(
-          xPosition: newX + 70 / 2 - 17,
-          yAlign: yAlign,
-          collected: false,
-        );
-
+        
+        // Increment the collectible cycle counter
         collectibleCycleCounter = (collectibleCycleCounter + 1) % 6;
       }
     }
-  }
-
-  // --- Collision Detection ---
-  bool checkCollision() {
-    final screenSize = MediaQuery.of(context).size;
-
-    // Bird's visual size in the game (scaled)
-    final birdWidth = 70.0 * 0.7;  // 49.0
-    final birdHeight = 70.0 * 0.7; // 49.0
-
-    // Shrink bird hitbox for tighter collision (e.g., 20% padding)
-    final birdHitboxPadding = 0.2; // 20% inset
-    final birdHitboxWidth = birdWidth * (1 - birdHitboxPadding);
-    final birdHitboxHeight = birdHeight * (1 - birdHitboxPadding);
-
-    final birdCenterX = screenSize.width / 2;
-    final birdCenterY = screenSize.height / 2 + birdY * (screenSize.height / 2);
-    final birdRect = Rect.fromCenter(
-      center: Offset(birdCenterX, birdCenterY),
-      width: birdHitboxWidth,
-      height: birdHitboxHeight,
-    );
-
-    // Shrink glue stick hitbox horizontally (e.g., 15% inset)
-    final glueStickHitboxPadding = 0.15; // 15% inset
-    for (var glueStick in glueSticks) {
-      final stickX = glueStick.xPosition + glueStick.width * glueStickHitboxPadding / 2;
-      final stickWidth = glueStick.width * (1 - glueStickHitboxPadding);
-
-      // Top glue stick
-      final topRect = Rect.fromLTWH(
-        stickX,
-        0,
-        stickWidth,
-        screenSize.height / 2 + glueStick.verticalOffset - glueStick.gap / 2,
-      );
-      // Bottom glue stick
-      final bottomRect = Rect.fromLTWH(
-        stickX,
-        screenSize.height - (screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2),
-        stickWidth,
-        screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2,
-      );
-      if (birdRect.overlaps(topRect) || birdRect.overlaps(bottomRect)) {
-        // --- Red Mode: lose all red pills if not cashed out ---
-        if (redWhiteBlackFilter && !_redModeCashedOut) {
-          setState(() {
-            redPillCollected = 0;
-          });
-        }
-        return true;
-      }
-    }
-    return false;
   }
 
   void resetGame() {
@@ -787,9 +764,10 @@ class _GameScreenState extends State<GameScreen> {
       glueSticks.clear();
       lionsManes.clear();
       redPills.clear();
-      bitcoins.clear();
+      solanas.clear();
       collectibleTypes.clear();
-      // lionsManeCollected, redPillCollected, bitcoinCollected are NOT reset here!
+      collectibleCycleCounter = 0;  // Ensure this resets to maintain pattern
+      // lionsManeCollected, redPillCollected, bitcoinCollected, solanaCollected are NOT reset here!
       _portalVisible = false;
       _gapsSinceLastPortal = 0;
     });
@@ -887,11 +865,9 @@ class _GameScreenState extends State<GameScreen> {
           ...redPills.map((pill) => pill.build(context)).toList()
         else
           ...[
-            for (int i = 0; i < lionsManes.length; i++)
-              if (!bitcoins[i].collected && bitcoins[i].xPosition > 0)
-                bitcoins[i].build(context)
-              else
-                lionsManes[i].build(context)
+            // Fix: Make sure both collections are displayed properly
+            ...lionsManes.map((mane) => mane.build(context)).toList(),
+            ...solanas.map((sol) => sol.build(context)).toList(),
           ],
         // Bird
         Align(
@@ -1338,11 +1314,12 @@ class _GameScreenState extends State<GameScreen> {
           setState(() {
             redPill.collected = true;
             redPillCollected += 1;
-            _updatePnlHistory(); // <-- Add this
+            _updatePnlHistory();
           });
         }
       }
     } else {
+      // Check Lions Mane collisions
       for (var i = 0; i < lionsManes.length; i++) {
         if (!lionsManes[i].collected) {
           double yPx = screenSize.height / 2 + lionsManes[i].yAlign * (screenSize.height / 2);
@@ -1356,24 +1333,27 @@ class _GameScreenState extends State<GameScreen> {
             setState(() {
               lionsManes[i].collected = true;
               lionsManeCollected += 1;
-              _updatePnlHistory(); // <-- Add this
+              _updatePnlHistory();
             });
           }
         }
-        // Bitcoin collision (only if not collected)
-        if (!bitcoins[i].collected) {
-          double yPx = screenSize.height / 2 + bitcoins[i].yAlign * (screenSize.height / 2);
-          Rect btcRect = Rect.fromLTWH(
-            bitcoins[i].xPosition,
+      }
+      
+      // Check Solana collisions
+      for (var i = 0; i < solanas.length; i++) {
+        if (!solanas[i].collected) {
+          double yPx = screenSize.height / 2 + solanas[i].yAlign * (screenSize.height / 2);
+          Rect solRect = Rect.fromLTWH(
+            solanas[i].xPosition,
             yPx - 20,
             40,
             40,
           );
-          if (birdRect.overlaps(btcRect)) {
+          if (birdRect.overlaps(solRect)) {
             setState(() {
-              bitcoins[i].collected = true;
-              bitcoinCollected += 1;
-              _updatePnlHistory(); // <-- Add this
+              solanas[i].collected = true;
+              solanaCollected += 1;
+              _updatePnlHistory();
             });
           }
         }
@@ -1407,29 +1387,58 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
-  // Add the missing _checkPortalCollision method:
-  void _checkPortalCollision() {
-    if (!_portalVisible) return;
+  // Add the missing checkCollision method
+  bool checkCollision() {
     final screenSize = MediaQuery.of(context).size;
+
+    // Bird's visual size in the game (scaled)
+    final birdWidth = 70.0 * 0.7;  // 49.0
+    final birdHeight = 70.0 * 0.7; // 49.0
+
+    // Shrink bird hitbox for tighter collision (e.g., 20% padding)
+    final birdHitboxPadding = 0.2; // 20% inset
+    final birdHitboxWidth = birdWidth * (1 - birdHitboxPadding);
+    final birdHitboxHeight = birdHeight * (1 - birdHitboxPadding);
+
     final birdCenterX = screenSize.width / 2;
     final birdCenterY = screenSize.height / 2 + birdY * (screenSize.height / 2);
-    Rect birdRect = Rect.fromCenter(
+    final birdRect = Rect.fromCenter(
       center: Offset(birdCenterX, birdCenterY),
-      width: 49 * 0.7,
-      height: 49 * 0.7,
+      width: birdHitboxWidth,
+      height: birdHitboxHeight,
     );
-    Rect portalRect = Rect.fromCenter(
-      center: Offset(_portalX, _portalY),
-      width: _portalSize,
-      height: _portalSize,
-    );
-    if (birdRect.overlaps(portalRect)) {
-      setState(() {
-        _portalVisible = false;
-        _showPongMiniGame = true;
-        _pongMiniGameSwitchValue = true;
-      });
+
+    // Shrink glue stick hitbox horizontally (e.g., 15% inset)
+    final glueStickHitboxPadding = 0.15; // 15% inset
+    for (var glueStick in glueSticks) {
+      final stickX = glueStick.xPosition + glueStick.width * glueStickHitboxPadding / 2;
+      final stickWidth = glueStick.width * (1 - glueStickHitboxPadding);
+
+      // Top glue stick
+      final topRect = Rect.fromLTWH(
+        stickX,
+        0,
+        stickWidth,
+        screenSize.height / 2 + glueStick.verticalOffset - glueStick.gap / 2,
+      );
+      // Bottom glue stick
+      final bottomRect = Rect.fromLTWH(
+        stickX,
+        screenSize.height - (screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2),
+        stickWidth,
+        screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2,
+      );
+      if (birdRect.overlaps(topRect) || birdRect.overlaps(bottomRect)) {
+        // --- Red Mode: lose all red pills if not cashed out ---
+        if (redWhiteBlackFilter && !_redModeCashedOut) {
+          setState(() {
+            redPillCollected = 0;
+          });
+        }
+        return true;
+      }
     }
+    return false;
   }
 
   // Add the missing jump() method:
@@ -1473,6 +1482,38 @@ class _GameScreenState extends State<GameScreen> {
       print("USD Balance updated: $usdBalance"); // Debug log
       _updatePnlHistory();
     });
+  }
+
+  // Add the missing _checkPortalCollision method:
+  void _checkPortalCollision() {
+    if (!_portalVisible) return;
+    
+    final screenSize = MediaQuery.of(context).size;
+    final birdCenterX = screenSize.width / 2;
+    final birdCenterY = screenSize.height / 2 + birdY * (screenSize.height / 2);
+    
+    // Create bird rectangle for collision detection
+    Rect birdRect = Rect.fromCenter(
+      center: Offset(birdCenterX, birdCenterY),
+      width: 49 * 0.7,  // Approximate bird width with scaling
+      height: 49 * 0.7, // Approximate bird height with scaling
+    );
+    
+    // Create portal rectangle for collision detection
+    Rect portalRect = Rect.fromCenter(
+      center: Offset(_portalX, _portalY),
+      width: _portalSize,
+      height: _portalSize,
+    );
+    
+    // Check if bird and portal rectangles overlap
+    if (birdRect.overlaps(portalRect)) {
+      setState(() {
+        _portalVisible = false;
+        _showPongMiniGame = true;
+        _pongMiniGameSwitchValue = true;
+      });
+    }
   }
 }
 
