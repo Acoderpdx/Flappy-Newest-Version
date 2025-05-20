@@ -78,6 +78,9 @@ class _PropertyScreenState extends State<PropertyScreen> {
   // Current house being viewed in catalog
   int _catalogIndex = 0;
   
+  // Add new loading state variable
+  bool _isUpgrading = false;
+  
   @override
   void initState() {
     super.initState();
@@ -165,20 +168,31 @@ class _PropertyScreenState extends State<PropertyScreen> {
     }
   }
 
-  // Upgrade existing house
+  // Upgrade existing house - modified to add transition
   void _upgradeHouse() {
     if (_canUpgradeHouse) {
       final double upgradeCost = _nextUpgradeCost;
       
-      // Update local state
+      // Start loading state
       setState(() {
-        _currentBalance -= upgradeCost;
-        _currentHouseLevel++;
+        _isUpgrading = true;
       });
       
-      // Notify parent components
-      widget.onUpdateBalance(-upgradeCost);
-      widget.onHouseChanged(_currentHouseLevel, _selectedHouseType);
+      // Add a small delay to ensure smooth transition
+      Future.delayed(Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        
+        // Update local state
+        setState(() {
+          _currentBalance -= upgradeCost;
+          _currentHouseLevel++;
+          _isUpgrading = false; // End loading state
+        });
+        
+        // Notify parent components
+        widget.onUpdateBalance(-upgradeCost);
+        widget.onHouseChanged(_currentHouseLevel, _selectedHouseType);
+      });
     }
   }
   
@@ -231,14 +245,25 @@ class _PropertyScreenState extends State<PropertyScreen> {
       ),
       body: Stack(
         children: [
-          // Scrolling background
+          // Stable background - ensures it's always full width
+          Container(
+            width: MediaQuery.of(context).size.width,
+            height: MediaQuery.of(context).size.height,
+            color: Colors.black,
+          ),
+          
+          // Scrolling background with proper constraints
           Positioned.fill(
             child: ScrollingBackground(scrollSpeed: 80.0),
           ),
           
-          // Main content
+          // Main content with fixed constraints
           SafeArea(
-            child: _showCatalog ? _buildCatalogView() : _buildHouseView(),
+            child: Container(
+              width: MediaQuery.of(context).size.width,
+              height: MediaQuery.of(context).size.height - AppBar().preferredSize.height - MediaQuery.of(context).padding.top,
+              child: _showCatalog ? _buildCatalogView() : _buildHouseView(),
+            ),
           ),
         ],
       ),
@@ -406,7 +431,7 @@ class _PropertyScreenState extends State<PropertyScreen> {
     );
   }
   
-  // Current house view
+  // Current house view - modified with improved layout stability
   Widget _buildHouseView() {
     if (_currentHouseType == null || _currentHouseLevel <= 0) {
       // If no house is owned, redirect to catalog
@@ -416,133 +441,159 @@ class _PropertyScreenState extends State<PropertyScreen> {
       return Center(child: CircularProgressIndicator());
     }
     
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // USD Balance display
-          Card(
-            color: Colors.black.withOpacity(0.8),
-            margin: const EdgeInsets.only(bottom: 20.0),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 24.0),
-              child: Column(
-                children: [
-                  Text(
-                    'USD Balance',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white70,
+    // Use a fixed height container to prevent layout shifts
+    return Container(
+      width: MediaQuery.of(context).size.width,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // USD Balance display
+            Card(
+              color: Colors.black.withOpacity(0.8),
+              margin: const EdgeInsets.only(bottom: 20.0),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 24.0),
+                child: Column(
+                  children: [
+                    Text(
+                      'USD Balance',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white70,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    '\$${_currentBalance.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
+                    SizedBox(height: 4),
+                    Text(
+                      '\$${_currentBalance.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          
-          // House type and level
-          Text(
-            '${_currentHouseType!.name}',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.amber,
-            ),
-          ),
-          
-          SizedBox(height: 8),
-          
-          // House display container
-          Container(
-            width: 280,
-            height: 240,
-            padding: const EdgeInsets.all(10),
-            margin: const EdgeInsets.symmetric(vertical: 20),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.7),
-              border: Border.all(color: Colors.amber, width: 2),
-              borderRadius: BorderRadius.circular(10),
-              image: DecorationImage(
-                image: AssetImage('assets/images/house_background.png'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Center(
-              child: Image.asset(
-                _currentHouseAsset,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Icon(Icons.home, color: Colors.amber, size: 120);
-                },
-              ),
-            ),
-          ),
-          
-          // House level info
-          Text(
-            'Level $_currentHouseLevel Property',
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          
-          if (_currentHouseLevel < 5) ...[
-            SizedBox(height: 8),
+            
+            // House type and level
             Text(
-              'Next upgrade costs \$${_nextUpgradeCost.toStringAsFixed(2)}',
+              '${_currentHouseType!.name}',
               style: TextStyle(
-                fontSize: 16,
-                color: _canUpgradeHouse ? Colors.green : Colors.red,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.amber,
               ),
             ),
-          ],
-          
-          SizedBox(height: 24),
-          
-          // Upgrade button
-          ElevatedButton(
-            onPressed: _canUpgradeHouse ? _upgradeHouse : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _canUpgradeHouse ? Colors.green : Colors.grey,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            
+            SizedBox(height: 8),
+            
+            // House display container - modified with better stability
+            Container(
+              width: 280,
+              height: 240,
+              padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.symmetric(vertical: 20),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.7),
+                border: Border.all(color: Colors.amber, width: 2),
+                borderRadius: BorderRadius.circular(10),
+                image: DecorationImage(
+                  image: AssetImage('assets/images/house_background.png'),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              child: _isUpgrading 
+                // Show loading indicator during upgrade
+                ? Center(child: CircularProgressIndicator(color: Colors.amber))
+                // Show house image when not upgrading
+                : Center(
+                    child: Image.asset(
+                      _currentHouseAsset,
+                      fit: BoxFit.contain,
+                      // Better error handling
+                      errorBuilder: (context, error, stackTrace) {
+                        print("Error loading house image: $_currentHouseAsset");
+                        return const Icon(Icons.home, color: Colors.amber, size: 120);
+                      },
+                    ),
+                  ),
             ),
-            child: Text(
-              _currentHouseLevel >= 5 
-              ? 'Maximum Level Reached' 
-              : 'Upgrade to Level ${_currentHouseLevel + 1}',
+            
+            // Show upgrade button with loading state
+            Text(
+              'Level $_currentHouseLevel Property',
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-          ),
-          
-          SizedBox(height: 16),
-          
-          // View catalog button
-          TextButton(
-            onPressed: () => setState(() => _showCatalog = true),
-            child: Text(
-              'Browse House Catalog',
-              style: TextStyle(
-                color: Colors.amber,
-                fontSize: 16,
+            
+            if (_currentHouseLevel < 5) ...[
+              SizedBox(height: 8),
+              Text(
+                'Next upgrade costs \$${_nextUpgradeCost.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: _canUpgradeHouse ? Colors.green : Colors.red,
+                ),
+              ),
+            ],
+            
+            SizedBox(height: 24),
+            
+            // Upgrade button - disable during upgrading
+            ElevatedButton(
+              onPressed: (_canUpgradeHouse && !_isUpgrading) ? _upgradeHouse : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _canUpgradeHouse && !_isUpgrading ? Colors.green : Colors.grey,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              ),
+              child: _isUpgrading
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text('Upgrading...', style: TextStyle(color: Colors.white)),
+                    ],
+                  )
+                : Text(
+                    _currentHouseLevel >= 5 
+                    ? 'Maximum Level Reached' 
+                    : 'Upgrade to Level ${_currentHouseLevel + 1}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+            ),
+            
+            SizedBox(height: 16),
+            
+            // View catalog button
+            TextButton(
+              onPressed: () => setState(() => _showCatalog = true),
+              child: Text(
+                'Browse House Catalog',
+                style: TextStyle(
+                  color: Colors.amber,
+                  fontSize: 16,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -288,6 +288,7 @@ class _GameScreenState extends State<GameScreen> {
   bool _redModeCashedOut = false;      // Track if player cashed out
   int _redModeCashedOutRedPills = 0;   // Amount cashed out
   int _currentRoundRedPills = 0;       // Track red pills collected this round only
+  int _redPillWagerAmount = 0;         // NEW: Amount of red pills wagered (25% of total)
 
   // --- Add PnL history tracking ---
   List<double> lionsManePnlHistory = [0];
@@ -366,10 +367,12 @@ class _GameScreenState extends State<GameScreen> {
     gameHasStarted = true;
     gameOver = false;
     score = 0;
-    _redModeCashOutEnabled = false;
     _redModeCashedOut = false;
     _redModeCashedOutRedPills = 0;
-    _currentRoundRedPills = 0;  // Reset current round pills counter
+    _currentRoundRedPills = 0;
+    
+    // Enable cash out button if in red mode
+    _redModeCashOutEnabled = redWhiteBlackFilter;
 
     glueSticks.clear();
     lionsManes.clear();
@@ -425,15 +428,15 @@ class _GameScreenState extends State<GameScreen> {
           yAlign: yAlign,
         ));
         solanas.add(Solana(
-          xPosition: -1000,  // Off-screen
-          yAlign: 0,
+          xPosition: xPos + 70 / 2 - 20,
+          yAlign: yAlign,
           collected: true,
         ));
       } else {
         // Position 5 (every 6th): spawn Solana
         lionsManes.add(LionsMane(
-          xPosition: -1000,  // Off-screen
-          yAlign: 0,
+          xPosition: xPos + 70 / 2 - 20, 
+          yAlign: yAlign,
           collected: true,
         ));
         solanas.add(Solana(
@@ -466,7 +469,7 @@ class _GameScreenState extends State<GameScreen> {
         checkCollectibleCollision();
         if (checkCollision()) {
           gameOver = true;
-          gameLoopTimer?.cancel();
+          timer.cancel();
         }
       });
     });
@@ -479,6 +482,8 @@ class _GameScreenState extends State<GameScreen> {
       double y = screenSize.height / 2;
       setState(() {
         _portalVisible = true;
+        _portalX = x;
+        _portalY = y;
       });
     });
   }
@@ -797,27 +802,47 @@ class _GameScreenState extends State<GameScreen> {
           child: GestureDetector(
             onTap: _handleRedModeCashOut,
             child: Container(
+              padding: EdgeInsets.all(10),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.greenAccent,
-                  width: 4,
-                ),
+                color: Colors.black.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: Colors.amber, width: 2),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.green.withOpacity(0.5),
-                    blurRadius: 12,
+                    color: Colors.amber.withOpacity(0.5),
                     spreadRadius: 2,
+                    blurRadius: 7,
+                  )
+                ]
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/images/bitcoin.png',
+                    width: 50,
+                    height: 50,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(Icons.attach_money, color: Colors.amber, size: 50);
+                    },
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'CASH OUT',
+                    style: TextStyle(
+                      color: Colors.amber,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    '$_currentRoundRedPills Pills',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                    ),
                   ),
                 ],
-              ),
-              padding: const EdgeInsets.all(6),
-              child: Image.asset(
-                'assets/images/bitcoin.png',
-                width: 38,
-                height: 38,
-                errorBuilder: (context, error, stackTrace) =>
-                    Icon(Icons.currency_bitcoin, color: Colors.amber, size: 38),
               ),
             ),
           ),
@@ -857,234 +882,253 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
 
-    Widget gameStack = Stack(
-      children: [
-        ScrollingBackground(
-          scrollSpeed: 80.0,
-        ),
-        // Glue sticks
-        ...glueSticks.map((glueStick) => glueStick.build(context)).toList(),
-        // Collectibles
-        if (redWhiteBlackFilter)
-          ...redPills.map((pill) => pill.build(context)).toList()
-        else
-          ...[
-            // Fix: Make sure both collections are displayed properly
-            ...lionsManes.map((mane) => mane.build(context)).toList(),
-            ...solanas.map((sol) => sol.build(context)).toList(),
-          ],
-        // Bird
-        Align(
-          alignment: Alignment(0, birdY),
-          child: Transform.rotate(
-            angle: birdAngle,
-            child: Image.asset(
-              'assets/images/$currentBirdSkin',
-              width: 49,
-              height: 49,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.red,
-                  child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                );
-              },
-            ),
+    // --- Add red pill wager indicator ---
+    List<Widget> gameStackChildren = [
+      ScrollingBackground(scrollSpeed: 80.0),
+      // Glue sticks
+      ...glueSticks.map((glueStick) => glueStick.build(context)).toList(),
+      // Collectibles
+      if (redWhiteBlackFilter)
+        ...redPills.map((pill) => pill.build(context)).toList()
+      else
+        ...[
+          ...lionsManes.map((mane) => mane.build(context)).toList(),
+          ...solanas.map((sol) => sol.build(context)).toList(),
+        ],
+      // Bird
+      Align(
+        alignment: Alignment(0, birdY),
+        child: Transform.rotate(
+          angle: birdAngle,
+          child: Image.asset(
+            'assets/images/$currentBirdSkin',
+            width: 70.0 * 0.7,
+            height: 70.0 * 0.7,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                width: 70.0 * 0.7,
+                height: 70.0 * 0.7,
+                color: Colors.red,
+                child: Center(child: Text('!')),
+              );
+            },
           ),
         ),
-        // Portal (portal.png image) -- now rendered AFTER the bird so it's in front
-        if (_portalVisible)
-          Positioned(
-            left: _portalX - _portalSize / 2,
-            top: _portalY - _portalSize / 2,
-            child: Image.asset(
-              'assets/images/portal.png',
-              width: _portalSize,
-              height: _portalSize,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: _portalSize,
-                  height: _portalSize,
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+      ),
+      // Portal (portal.png image) -- now rendered AFTER the bird so it's in front
+      if (_portalVisible)
+        Positioned(
+          left: _portalX - _portalSize / 2,
+          top: _portalY - _portalSize / 2,
+          child: Image.asset(
+            'assets/images/portal.png',
+            width: _portalSize,
+            height: _portalSize,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                width: _portalSize,
+                height: _portalSize,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              );
+            },
+          ),
+        ),
+      // Collectibles display (show only while playing or game over, but not title screen)
+      if ((gameHasStarted || gameOver) && !showTitleScreen)
+        Positioned(
+          top: 48,
+          left: 0,
+          right: 0,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Lions Mane
+                  Image.asset(
+                    'assets/images/lions_mane.png',
+                    width: 28,
+                    height: 28,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.red,
+                        child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-          ),
-        // Collectibles display (show only while playing or game over, but not title screen)
-        if ((gameHasStarted || gameOver) && !showTitleScreen)
-          Positioned(
-            top: 48,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Lions Mane
-                    Image.asset(
-                      'assets/images/lions_mane.png',
-                      width: 28,
-                      height: 28,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.red,
-                          child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                        );
-                      },
+                  SizedBox(width: 4),
+                  Text(
+                    '$lionsManeCollected',
+                    style: TextStyle(
+                      fontSize: 32,
+                      color: Colors.amber,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(2, 2),
+                          blurRadius: 8,
+                          color: Colors.black54,
+                        ),
+                      ],
                     ),
-                    SizedBox(width: 4),
-                    Text(
-                      '$lionsManeCollected',
-                      style: TextStyle(
-                        fontSize: 32,
-                        color: Colors.amber,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                            offset: Offset(2, 2),
-                            blurRadius: 8,
-                            color: Colors.black54,
-                          ),
-                        ],
-                      ),
+                  ),
+                  SizedBox(width: 18),
+                  // Red Pill
+                  Image.asset(
+                    'assets/images/red_pill.png',
+                    width: 28,
+                    height: 28,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.red,
+                        child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                      );
+                    },
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    '$redPillCollected',
+                    style: TextStyle(
+                      fontSize: 32,
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(2, 2),
+                          blurRadius: 8,
+                          color: Colors.black54,
+                        ),
+                      ],
                     ),
-                    SizedBox(width: 18),
-                    // Red Pill
-                    Image.asset(
-                      'assets/images/red_pill.png',
-                      width: 28,
-                      height: 28,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.red,
-                          child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                        );
-                      },
+                  ),
+                  SizedBox(width: 18),
+                  // Bitcoin
+                  Image.asset(
+                    'assets/images/bitcoin.png',
+                    width: 28,
+                    height: 28,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.red,
+                        child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                      );
+                    },
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    '$bitcoinCollected',
+                    style: TextStyle(
+                      fontSize: 32,
+                      color: Colors.amber,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(2, 2),
+                          blurRadius: 8,
+                          color: Colors.black54,
+                        ),
+                      ],
                     ),
-                    SizedBox(width: 4),
-                    Text(
-                      '$redPillCollected',
-                      style: TextStyle(
-                        fontSize: 32,
-                        color: Colors.redAccent,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                            offset: Offset(2, 2),
-                            blurRadius: 8,
-                            color: Colors.black54,
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: 18),
-                    // Bitcoin
-                    Image.asset(
-                      'assets/images/bitcoin.png',
-                      width: 28,
-                      height: 28,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.red,
-                          child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                        );
-                      },
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      '$bitcoinCollected',
-                      style: TextStyle(
-                        fontSize: 32,
-                        color: Colors.amber,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                            offset: Offset(2, 2),
-                            blurRadius: 8,
-                            color: Colors.black54,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                // --- Red Mode Cash Out Switch ---
-                if (redWhiteBlackFilter && gameHasStarted && !gameOver && !_redModeCashedOut)
-                  SizedBox(height: 60), // Add spacing so collectibles row doesn't overlap with center cashout
-              ],
-            ),
-          ),
-        // --- Red Mode Cash Out Button (bitcoin image at far left) ---
-        if (redWhiteBlackFilter && gameHasStarted && !gameOver && !_redModeCashedOut)
-          cashOutButton,
-        // "Tap to Start" overlay
-        if (!gameHasStarted && !gameOver)
-          Center(
-            child: Text(
-              'TAP TO START',
-              style: TextStyle(
-                fontSize: 24,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+                  ),
+                ],
               ),
+              // --- Red Mode Cash Out Switch ---
+              if (redWhiteBlackFilter && gameHasStarted && !gameOver && !_redModeCashedOut)
+                SizedBox(height: 60), // Add spacing so collectibles row doesn't overlap with center cashout
+            ],
+          ),
+        ),
+      // --- Red Mode Cash Out Button (bitcoin image at far left) ---
+      if (redWhiteBlackFilter && gameHasStarted && !gameOver && !_redModeCashedOut)
+        cashOutButton,
+      // "Tap to Start" overlay
+      if (!gameHasStarted && !gameOver)
+        Center(
+          child: Text(
+            'TAP TO START',
+            style: TextStyle(
+              fontSize: 24,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
           ),
-        // Title screen overlay
-        if (showTitleScreen)
-          Positioned.fill(
-            child: Stack(
-              fit: StackFit.expand,
+        ),
+      // Title screen overlay
+      if (showTitleScreen)
+        Positioned.fill(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/images/title_screen.png', // <-- use the new image
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.red,
+                    child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+                  );
+                },
+              ),
+              Center(
+                child: _TitleScreenContent(),
+              ),
+            ],
+          ),
+        ),
+    ];
+
+    // Add wager indicator to game UI in red mode
+    if (redWhiteBlackFilter && gameHasStarted && !gameOver) {
+      gameStackChildren.add(
+        Positioned(
+          top: 10,
+          right: 10,
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.red, width: 1),
+            ),
+            child: Row(
               children: [
-                Image.asset(
-                  'assets/images/title_screen.png', // <-- use the new image
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.red,
-                      child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                    );
-                  },
-                ),
-                Center(
-                  child: _TitleScreenContent(),
+                Image.asset('assets/images/red_pill.png', width: 20, height: 20),
+                SizedBox(width: 5),
+                Text(
+                  'At Risk: $_redPillWagerAmount',
+                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
           ),
-      ],
+        ),
+      );
+    }
+
+    Widget gameStack = Stack(
+      children: gameStackChildren,
     );
 
-    // Apply color filter if enabled
+    // Apply color filter if enabled - updating to ensure it works properly
     if (redWhiteBlackFilter) {
       gameStack = ColorFiltered(
         colorFilter: const ColorFilter.matrix(<double>[
-          // Red channel
-          1, 0, 0, 0, 0,
-          // Green channel
-          0, 0, 0, 0, 0,
-          // Blue channel
-          0, 0, 0, 0, 0,
-          // Alpha channel,  0, 0, 0, 1, 0,
-          0, 0, 0, 1, 0,
+          1.0, 0.0, 0.0, 0.0, 0.0,    // Red channel - keep red
+          0.0, 0.0, 0.0, 0.0, 0.0,    // Green channel - remove
+          0.0, 0.0, 0.0, 0.0, 0.0,    // Blue channel - remove
+          0.0, 0.0, 0.0, 1.0, 0.0,    // Alpha channel - no change
         ]),
         child: gameStack,
       );
     }
+    
+    // Ensure onTap works properly with simplified logic
     return GestureDetector(
-      onTap: showTitleScreen
-          ? null
-          : (gameOver
-              ? () {
-                  if (canRestart) {
-                    resetGame();
-                    startGame();
-                  }
-                }
-              : onTap),
+      onTap: showTitleScreen ? null : onTap,
       child: Scaffold(
         body: Stack(
           children: [
@@ -1092,27 +1136,20 @@ class _GameScreenState extends State<GameScreen> {
             if (_showMiniGame)
               Positioned.fill(
                 child: CrashMiniGame(
+                  redPillCollected: redPillCollected, // Keep this parameter
+                  lionsManeCollected: lionsManeCollected,  // Add this parameter
+                  onRedPillsEarned: (int amount) {
+                    setState(() {
+                      redPillCollected += amount;
+                      _showMiniGame = false;
+                    });
+                  },
                   onClose: () {
                     setState(() {
                       _showMiniGame = false;
-                      _miniGameSwitchValue = false;
                     });
                   },
-                  lionsManeCollected: lionsManeCollected,
-                  redPillCollected: redPillCollected,
-                  bitcoinCollected: bitcoinCollected,
-                  ethereumCollected: ethereumCollected,
-                  solanaCollected: solanaCollected,
-                  onUpdateAssets: (lionsManeDelta, redPillDelta, bitcoinDelta, ethereumDelta, solanaDelta) {
-                    setState(() {
-                      lionsManeCollected += lionsManeDelta;
-                      redPillCollected += redPillDelta;
-                      bitcoinCollected += bitcoinDelta;
-                      ethereumCollected += ethereumDelta;
-                      solanaCollected += solanaDelta;
-                      _updatePnlHistory();
-                    });
-                  },
+                  currentRoundRedPills: _currentRoundRedPills,
                 ),
               ),
             if (_showPongMiniGame)
@@ -1303,168 +1340,6 @@ class _GameScreenState extends State<GameScreen> {
     ));
   }
 
-  // Add this method to fix the error:
-  void checkCollectibleCollision() {
-    final screenSize = MediaQuery.of(context).size;
-    final birdWidth = 70.0 * 0.7;
-    final birdHeight = 70.0 * 0.7;
-    final birdHitboxPadding = 0.2;
-    final birdHitboxWidth = birdWidth * (1 - birdHitboxPadding);
-    final birdHitboxHeight = birdHeight * (1 - birdHitboxPadding);
-
-    final birdCenterX = screenSize.width / 2;
-    final birdCenterY = screenSize.height / 2 + birdY * (screenSize.height / 2);
-    final birdRect = Rect.fromCenter(
-      center: Offset(birdCenterX, birdCenterY),
-      width: birdHitboxWidth,
-      height: birdHitboxHeight,
-    );
-
-    if (redWhiteBlackFilter) {
-      for (var redPill in redPills) {
-        if (redPill.collected) continue;
-        double yPx = screenSize.height / 2 + redPill.yAlign * (screenSize.height / 2);
-        Rect pillRect = Rect.fromLTWH(
-          redPill.xPosition,
-          yPx - 17,
-          34,
-          34,
-        );
-        if (birdRect.overlaps(pillRect)) {
-          setState(() {
-            redPill.collected = true;
-            redPillCollected += 1;
-            _currentRoundRedPills += 1;  // Also increment round-specific counter
-            _updatePnlHistory();
-          });
-        }
-      }
-    } else {
-      // Check Lions Mane collisions
-      for (var i = 0; i < lionsManes.length; i++) {
-        if (!lionsManes[i].collected) {
-          double yPx = screenSize.height / 2 + lionsManes[i].yAlign * (screenSize.height / 2);
-          Rect maneRect = Rect.fromLTWH(
-            lionsManes[i].xPosition,
-            yPx - 17,
-            34,
-            34,
-          );
-          if (birdRect.overlaps(maneRect)) {
-            setState(() {
-              lionsManes[i].collected = true;
-              lionsManeCollected += 1;
-              _updatePnlHistory();
-            });
-          }
-        }
-      }
-      
-      // Check Solana collisions
-      for (var i = 0; i < solanas.length; i++) {
-        if (!solanas[i].collected) {
-          double yPx = screenSize.height / 2 + solanas[i].yAlign * (screenSize.height / 2);
-          Rect solRect = Rect.fromLTWH(
-            solanas[i].xPosition,
-            yPx - 20,
-            40,
-            40,
-          );
-          if (birdRect.overlaps(solRect)) {
-            setState(() {
-              solanas[i].collected = true;
-              solanaCollected += 1;
-              _updatePnlHistory();
-            });
-          }
-        }
-      }
-    }
-  }
-
-  void onTap() {
-    if (gameOver) {
-      if (canRestart) {
-        resetGame();
-        startGame();
-      }
-      return;
-    }
-    if (!gameHasStarted) {
-      startGame();
-      return;
-    }
-    jump();
-  }
-
-  // --- Red Mode Cash Out logic ---
-  void _handleRedModeCashOut() {
-    if (!redWhiteBlackFilter || gameOver || _redModeCashedOut) return;
-    setState(() {
-      _redModeCashedOut = true;
-      _redModeCashedOutRedPills = _currentRoundRedPills;  // Store cashed out pills
-      _currentRoundRedPills = 0;  // Reset as we've secured them
-      gameOver = true;
-      gameLoopTimer?.cancel();
-    });
-  }
-
-  // Fix the checkCollision method to only deduct current round red pills
-  bool checkCollision() {
-    final screenSize = MediaQuery.of(context).size;
-
-    // Bird's visual size in the game (scaled)
-    final birdWidth = 70.0 * 0.7;  // 49.0
-    final birdHeight = 70.0 * 0.7; // 49.0
-
-    // Shrink bird hitbox for tighter collision (e.g., 20% padding)
-    final birdHitboxPadding = 0.2; // 20% inset
-    final birdHitboxWidth = birdWidth * (1 - birdHitboxPadding);
-    final birdHitboxHeight = birdHeight * (1 - birdHitboxPadding);
-
-    final birdCenterX = screenSize.width / 2;
-    final birdCenterY = screenSize.height / 2 + birdY * (screenSize.height / 2);
-    final birdRect = Rect.fromCenter(
-      center: Offset(birdCenterX, birdCenterY),
-      width: birdHitboxWidth,
-      height: birdHitboxHeight,
-    );
-
-    // Shrink glue stick hitbox horizontally (e.g., 15% inset)
-    final glueStickHitboxPadding = 0.15; // 15% inset
-    for (var glueStick in glueSticks) {
-      final stickX = glueStick.xPosition + glueStick.width * glueStickHitboxPadding / 2;
-      final stickWidth = glueStick.width * (1 - glueStickHitboxPadding);
-
-      // Top glue stick
-      final topRect = Rect.fromLTWH(
-        stickX,
-        0,
-        stickWidth,
-        screenSize.height / 2 + glueStick.verticalOffset - glueStick.gap / 2,
-      );
-      // Bottom glue stick
-      final bottomRect = Rect.fromLTWH(
-        stickX,
-        screenSize.height - (screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2),
-        stickWidth,
-        screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2,
-      );
-      if (birdRect.overlaps(topRect) || birdRect.overlaps(bottomRect)) {
-        // --- Red Mode: lose only current round red pills if not cashed out ---
-        if (redWhiteBlackFilter && !_redModeCashedOut) {
-          setState(() {
-            redPillCollected -= _currentRoundRedPills;  // Only deduct current round pills
-            redPillCollected = redPillCollected.clamp(0, 999999);  // Ensure not negative
-            _currentRoundRedPills = 0;  // Reset the counter
-          });
-        }
-        return true;
-      }
-    }
-    return false;
-  }
-
   // Add the missing jump() method:
   void jump() {
     setState(() {
@@ -1537,6 +1412,208 @@ class _GameScreenState extends State<GameScreen> {
         _showPongMiniGame = true;
         _pongMiniGameSwitchValue = true;
       });
+    }
+  }
+
+  // Fix the missing checkCollision method
+  bool checkCollision() {
+    final screenSize = MediaQuery.of(context).size;
+
+    // Bird's visual size in the game (scaled)
+    final birdWidth = 70.0 * 0.7;  // 49.0
+    final birdHeight = 70.0 * 0.7; // 49.0
+
+    // Shrink bird hitbox for tighter collision (e.g., 20% padding)
+    final birdHitboxPadding = 0.2; // 20% inset
+    final birdHitboxWidth = birdWidth * (1 - birdHitboxPadding);
+    final birdHitboxHeight = birdHeight * (1 - birdHitboxPadding);
+
+    final birdCenterX = screenSize.width / 2;
+    final birdCenterY = screenSize.height / 2 + birdY * (screenSize.height / 2);
+    final birdRect = Rect.fromCenter(
+      center: Offset(birdCenterX, birdCenterY),
+      width: birdHitboxWidth,
+      height: birdHitboxHeight,
+    );
+
+    // Shrink glue stick hitbox horizontally for more forgiving collisions
+    final glueStickHitboxPadding = 0.15; // 15% inset
+    for (var glueStick in glueSticks) {
+      final stickX = glueStick.xPosition + glueStick.width * glueStickHitboxPadding / 2;
+      final stickWidth = glueStick.width * (1 - glueStickHitboxPadding);
+
+      // Top glue stick
+      final topRect = Rect.fromLTWH(
+        stickX,
+        0,
+        stickWidth,
+        screenSize.height / 2 + glueStick.verticalOffset - glueStick.gap / 2,
+      );
+      
+      // Bottom glue stick
+      final bottomRect = Rect.fromLTWH(
+        stickX,
+        screenSize.height - (screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2),
+        stickWidth,
+        screenSize.height / 2 - glueStick.verticalOffset - glueStick.gap / 2,
+      );
+      
+      if (birdRect.overlaps(topRect) || birdRect.overlaps(bottomRect)) {
+        // Handle red mode wager loss if not cashed out
+        if (redWhiteBlackFilter && !_redModeCashedOut) {
+          setState(() {
+            _currentRoundRedPills = 0;  // Reset the current round pills
+            
+            // Apply the 25% wager loss if not cashed out
+            if (_redPillWagerAmount > 0) {
+              redPillCollected = (redPillCollected - _redPillWagerAmount).clamp(0, 999999);
+              
+              // Show message about wager loss when back on end screen
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('You lost $_redPillWagerAmount Red Pills from your wager!'),
+                      backgroundColor: Colors.red.shade800,
+                      duration: Duration(seconds: 5),
+                    )
+                  );
+                }
+              });
+              
+              // Update PNL history to reflect the loss
+              _updatePnlHistory();
+            }
+          });
+        }
+        return true; // Collision detected
+      }
+    }
+    return false; // No collision
+  }
+
+  // Add this method to fix the error - properly implement collision detection for collectibles
+  void checkCollectibleCollision() {
+    final screenSize = MediaQuery.of(context).size;
+    final birdWidth = 70.0 * 0.7;
+    final birdHeight = 70.0 * 0.7;
+    final birdHitboxPadding = 0.2;
+    final birdHitboxWidth = birdWidth * (1 - birdHitboxPadding);
+    final birdHitboxHeight = birdHeight * (1 - birdHitboxPadding);
+
+    final birdCenterX = screenSize.width / 2;
+    final birdCenterY = screenSize.height / 2 + birdY * (screenSize.height / 2);
+    final birdRect = Rect.fromCenter(
+      center: Offset(birdCenterX, birdCenterY),
+      width: birdHitboxWidth,
+      height: birdHitboxHeight,
+    );
+
+    if (redWhiteBlackFilter) {
+      for (var redPill in redPills) {
+        if (redPill.collected) continue;
+        double yPx = screenSize.height / 2 + redPill.yAlign * (screenSize.height / 2);
+        Rect pillRect = Rect.fromLTWH(
+          redPill.xPosition,
+          yPx - 17,
+          34,
+          34,
+        );
+        if (birdRect.overlaps(pillRect)) {
+          setState(() {
+            redPill.collected = true;
+            _currentRoundRedPills++; // Increment pills collected this round
+            _updatePnlHistory();
+          });
+        }
+      }
+    } else {
+      // Check Lions Mane collisions
+      for (var i = 0; i < lionsManes.length; i++) {
+        if (!lionsManes[i].collected) {
+          double yPx = screenSize.height / 2 + lionsManes[i].yAlign * (screenSize.height / 2);
+          Rect maneRect = Rect.fromLTWH(
+            lionsManes[i].xPosition,
+            yPx - 20,
+            40,
+            40,
+          );
+          if (birdRect.overlaps(maneRect)) {
+            setState(() {
+              lionsManes[i].collected = true;
+              lionsManeCollected++;
+              _updatePnlHistory();
+            });
+          }
+        }
+      }
+      
+      // Check Solana collisions
+      for (var i = 0; i < solanas.length; i++) {
+        if (!solanas[i].collected) {
+          double yPx = screenSize.height / 2 + solanas[i].yAlign * (screenSize.height / 2);
+          Rect solRect = Rect.fromLTWH(
+            solanas[i].xPosition,
+            yPx - 20,
+            40,
+            40,
+          );
+          if (birdRect.overlaps(solRect)) {
+            setState(() {
+              solanas[i].collected = true;
+              solanaCollected++;
+              _updatePnlHistory();
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Add the missing _handleRedModeCashOut method
+  void _handleRedModeCashOut() {
+    if (!redWhiteBlackFilter || gameOver || _redModeCashedOut) return;
+    
+    setState(() {
+      _redModeCashedOut = true;
+      _redModeCashedOutRedPills = _currentRoundRedPills;  // Store cashed out pills
+      redPillCollected += _currentRoundRedPills;  // Add collected pills to total
+      _currentRoundRedPills = 0;  // Reset as we've secured them
+      gameOver = true;
+      gameLoopTimer?.cancel();
+      
+      // Show cash out success message
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully cashed out $_redModeCashedOutRedPills Red Pills! Wager secured.'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            )
+          );
+        }
+      });
+      
+      // Update PNL history to reflect the gain
+      _updatePnlHistory();
+    });
+  }
+
+  // Add the missing onTap method to handle game interactions
+  void onTap() {
+    if (gameOver) {
+      // If game is over, restart it
+      resetGame();
+      setState(() {
+        gameHasStarted = false;
+      });
+    } else if (!gameHasStarted) {
+      // If game hasn't started, start it
+      startGame();
+    } else {
+      // If game is in progress, make the bird jump
+      jump();
     }
   }
 }
@@ -2089,9 +2166,9 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
             x: x,
             y: birdY,
             vy: 0,
-          ));
+                   ));
           _lastDropTime = t;
-        }
+               }
         
         // --- Animate lions mane collectibles falling with gravity like bird ---
         for (final mane in _lionsManes) {
@@ -2100,7 +2177,9 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
           mane.y += mane.vy;
         }
         
+        
         // Remove collectibles that fall off the bottom
+       
         _lionsManes.removeWhere((mane) => mane.y > 1.2);
       });
     });
