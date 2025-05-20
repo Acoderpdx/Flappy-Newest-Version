@@ -858,6 +858,9 @@ class _GameScreenState extends State<GameScreen> {
               totalWealthHistory: totalWealthHistory,
               usdBalance: usdBalance,
               onTrade: _handleTrade,
+              onClose: () {
+                Navigator.pop(context);
+              },
             ),
           ));
         },
@@ -1172,6 +1175,11 @@ class _GameScreenState extends State<GameScreen> {
                     _updatePnlHistory();
                   });
                 },
+                onClose: () {
+                  setState(() {
+                    _propertyScreenSwitchValue = false;
+                  });
+                }, // Make sure onClose is implemented
               ),
             if (gameOver && !_showMiniGame && !_showPongMiniGame && !_showBallBlastMiniGame && !_portfolioSwitchValue && !_propertyScreenSwitchValue)
               Positioned.fill(
@@ -1436,9 +1444,9 @@ class _GameScreenState extends State<GameScreen> {
   // Add a handler for trading activities
   void _handleTrade(int lionsManeDelta, int redPillDelta, int bitcoinDelta, double usdDelta) {
     setState(() {
-      lionsManeCollected += lionsManeDelta;
-      redPillCollected += redPillDelta;
-      bitcoinCollected += bitcoinDelta;
+      lionsManeCollected = (lionsManeCollected + lionsManeDelta).clamp(0, 999999);
+      redPillCollected = (redPillCollected + redPillDelta).clamp(0, 999999);
+      bitcoinCollected = (bitcoinCollected + bitcoinDelta).clamp(0, 999999);
       usdBalance += usdDelta;
       _updatePnlHistory();
     });
@@ -1773,35 +1781,49 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
             ),
           ),
         ),
-        // --- Property Switch (next to Portfolio Switch, house icon) ---
+        
+        // --- Property Switch (MOVED: above portfolio, center bottom) ---
         Positioned(
-          bottom: 40,
+          bottom: 100, // Moved up above portfolio button
+          left: 0,
           right: 0,
-          child: GestureDetector(
-            onTap: () => widget.onPropertySwitchChanged(!widget.propertySwitchValue),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: widget.propertySwitchValue ? Colors.green : Colors.transparent,
-                  width: 4,
+          child: Center(  // Center horizontally
+            child: GestureDetector(
+              onTap: () => widget.onPropertySwitchChanged(!widget.propertySwitchValue),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: widget.propertySwitchValue ? Colors.green : Colors.transparent,
+                    width: 4,
+                  ),
+                  boxShadow: [
+                    if (widget.propertySwitchValue)
+                      BoxShadow(
+                        color: Colors.green.withOpacity(0.5),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                  ],
                 ),
-                boxShadow: [
-                  if (widget.propertySwitchValue)
-                    BoxShadow(
-                      color: Colors.green.withOpacity(0.5),
-                      blurRadius: 12,
-                      spreadRadius: 2,
+                padding: const EdgeInsets.all(6),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Black outline
+                    Icon(
+                      Icons.home,
+                      color: Colors.black,
+                      size: 42,
                     ),
-                ],
-              ),
-              padding: const EdgeInsets.all(6),
-              child: Image.asset(
-                'assets/images/house1.png',
-                width: 38,
-                height: 38,
-                errorBuilder: (context, error, stackTrace) =>
-                    Icon(Icons.home, color: Colors.white, size: 38),
+                    // White house icon
+                    Icon(
+                      Icons.home,
+                      color: Colors.white,
+                      size: 38,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
