@@ -9,6 +9,7 @@ import 'dart:math'; // <-- Add this import
 import 'dart:io'; // <-- Add this import
 import 'portfolio_screen.dart';
 import 'property_screen.dart';
+import 'garage_screen.dart'; // Add import for the garage screen
 
 void main() {
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -309,6 +310,10 @@ class _GameScreenState extends State<GameScreen> {
   int _currentHouseLevel = 0;  // Start with no house (level 0)
   String _currentHouseType = ""; // Start with no house type selected
 
+  // Add garage screen state
+  bool _garageScreenSwitchValue = false;
+  String _currentCarId = "";  // Track current car
+  
   @override
   void initState() {
     super.initState();
@@ -1228,6 +1233,26 @@ class _GameScreenState extends State<GameScreen> {
                   });
                 },
               ),
+            if (_garageScreenSwitchValue)
+              GarageScreen(
+                usdBalance: usdBalance,
+                onUpdateBalance: (delta) {
+                  setState(() {
+                    usdBalance += delta;
+                  });
+                },
+                currentCarId: _currentCarId,
+                onCarChanged: (carId) {
+                  setState(() {
+                    _currentCarId = carId;
+                  });
+                },
+                onClose: () {
+                  setState(() {
+                    _garageScreenSwitchValue = false;
+                  });
+                },
+              ),
             if (gameOver && !_showMiniGame && !_showPongMiniGame && !_showBallBlastMiniGame && !_portfolioSwitchValue && !_propertyScreenSwitchValue)
               Positioned.fill(
                 child: EndScreenOverlay(
@@ -1255,6 +1280,7 @@ class _GameScreenState extends State<GameScreen> {
                   miniGameSwitchValue: _miniGameSwitchValue,
                   ballBlastMiniGameSwitchValue: _ballBlastMiniGameSwitchValue,
                   propertySwitchValue: _propertyScreenSwitchValue,
+                  garageScreenSwitchValue: _garageScreenSwitchValue,
                   onRedModeChanged: (val) {
                     setState(() {
                       redWhiteBlackFilter = val;
@@ -1292,6 +1318,12 @@ class _GameScreenState extends State<GameScreen> {
                   onPropertySwitchChanged: (val) {
                     setState(() {
                       _propertyScreenSwitchValue = val;
+                    });
+                  },
+                  // --- Add garage switch wiring ---
+                  onGarageSwitchChanged: (val) {
+                    setState(() {
+                      _garageScreenSwitchValue = val;
                     });
                   },
                 ),
@@ -1637,6 +1669,9 @@ class EndScreenOverlay extends StatefulWidget {
   // --- Add property switch value and callback ---
   final bool propertySwitchValue;
   final ValueChanged<bool> onPropertySwitchChanged;
+  // Add garage screen properties
+  final bool garageScreenSwitchValue;
+  final ValueChanged<bool> onGarageSwitchChanged;
 
   const EndScreenOverlay({
     Key? key,
@@ -1656,6 +1691,8 @@ class EndScreenOverlay extends StatefulWidget {
     required this.onPortfolioSwitchChanged,
     required this.propertySwitchValue,
     required this.onPropertySwitchChanged,
+    required this.garageScreenSwitchValue,
+    required this.onGarageSwitchChanged,
   }) : super(key: key);
 
   @override
@@ -1988,6 +2025,40 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
                       size: 38,
                     ),
                   ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        // --- Garage Switch (new: above property, center bottom) ---
+        Positioned(
+          bottom: 140, // Above the property switch
+          left: 0,
+          right: 0,
+          child: Center(
+            child: GestureDetector(
+              onTap: () => widget.onGarageSwitchChanged(!widget.garageScreenSwitchValue),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: widget.garageScreenSwitchValue ? Colors.green : Colors.transparent,
+                    width: 4,
+                  ),
+                  boxShadow: [
+                    if (widget.garageScreenSwitchValue)
+                      BoxShadow(
+                        color: Colors.green.withOpacity(0.5),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(6),
+                child: Icon(
+                  Icons.directions_car,
+                  color: Colors.white,
+                  size: 38,
                 ),
               ),
             ),

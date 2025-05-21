@@ -57,6 +57,14 @@ flutter:
     - assets/images/ythouse3.png
     - assets/images/ythouse4.png
     - assets/images/ythouse5.png
+    - assets/images/cars/Bugattus Cobra-X.png
+    - assets/images/cars/BVM Phantom 4.png
+    - assets/images/cars/Cerberus Firecat.png
+    - assets/images/cars/Hondo Racer-X.png
+    - assets/images/cars/Kyo Cubelet.png
+    - assets/images/cars/Mind Virus.png
+    - assets/images/cars/Mustardo Wildrun.png
+    - assets/images/cars/Plumber Beast-R.png
   fonts:
     - family: Flappybirdy
       fonts:
