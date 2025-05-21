@@ -1141,12 +1141,18 @@ class _GameScreenState extends State<GameScreen> {
             if (_showMiniGame)
               Positioned.fill(
                 child: CrashMiniGame(
-                  redPillCollected: redPillCollected, // Keep this parameter
-                  lionsManeCollected: lionsManeCollected,  // Add this parameter
+                  redPillCollected: redPillCollected,
+                  lionsManeCollected: lionsManeCollected,  // Already passing this correctly
                   onRedPillsEarned: (int amount) {
                     setState(() {
                       redPillCollected += amount;
-                      _showMiniGame = false;
+                      _updatePnlHistory(); // Update PNL history
+                    });
+                  },
+                  onLionsManeEarned: (int amount) {  // Add this new callback
+                    setState(() {
+                      lionsManeCollected += amount;
+                      _updatePnlHistory();  // Update portfolio history
                     });
                   },
                   onClose: () {
@@ -2185,8 +2191,8 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
   
   // Flap 3 times per second as bird moves left to right
   final int flapsPerSecond = 3;
-  late double flapInterval;
-  double lastFlapX = -1.2;
+   late double flapInterval;
+ double lastFlapX = -1.2;
 
   // --- Lions Mane collectibles for title screen ---
   final List<_TitleScreenLionsMane> _lionsManes = [];

@@ -1,814 +1,791 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' show PointMode;
 import 'package:flutter/material.dart';
-import 'main.dart';
+import 'main.dart'; // For ScrollingBackground
 
-class CrashMiniGame extends StatefulWidget {
+class CrashMiniGameScreen extends StatefulWidget {
+  final int lionsManeCollected;
   final int redPillCollected;
-  final int lionsManeCollected;  // Add this to support Lions Mane collectable
-  final Function(int) onRedPillsEarned;
-  final VoidCallback onClose;
-  final int currentRoundRedPills;
+  final int bitcoinCollected;
+  final Function(String, int) onCollectibleChange;
+  final VoidCallback? onClose;
 
-  const CrashMiniGame({
-    Key? key,
-    required this.redPillCollected,
-    this.lionsManeCollected = 0,  // Default value, but allow passing
-    required this.onRedPillsEarned,
-    required this.onClose,
-    this.currentRoundRedPills = 0,
+  const CrashMiniGameScreen({
+    Key? key, 
+    this.lionsManeCollected = 0,
+    this.redPillCollected = 0,
+    this.bitcoinCollected = 0,
+    required this.onCollectibleChange,
+    this.onClose,
   }) : super(key: key);
 
   @override
-  _CrashMiniGameState createState() => _CrashMiniGameState();
+  State<CrashMiniGameScreen> createState() => _CrashMiniGameScreenState();
 }
 
-class _CrashMiniGameState extends State<CrashMiniGame> {
-  double _multiplier = 1.0;
-  bool _isCrashed = false;
-  bool _hasStarted = false;
-  bool _hasCashedOut = false;
-  double _cashedOutAt = 0.0;
-  int _betAmount = 5; // Default bet amount
-  int _redPillsAvailable = 0;
-  int _lionsManeAvailable = 0;  // Add Lions Mane tracking
-  Timer? _gameTimer;
-  Random _random = Random();
+class _CrashMiniGameScreenState extends State<CrashMiniGameScreen> {
+  // Game state variables
+  double multiplier = 1.0;
+  bool gameRunning = false;
+  bool gameOver = false;
+  bool userCashedOut = false;
+  Timer? gameTimer;
   
-  // Used for collectible type switching
-  bool _useRedPills = true;  // Default to red pills
+  // Current round tracking variables
+  int _currentRoundRedPills = 0;
+  int _currentRoundLionsMane = 0;
   
-  // Streak tracking for more engaging gameplay patterns
-  int _winningStreak = 0;
-  int _losingStreak = 0;
-  bool _isHotStreak = false;
+  // Cash out variables
+  int _redPillsCashedOut = 0;
+  int _lionsManeCashedOut = 0;
   
-  // Game balance and difficulty parameters - adjusted for more fun
-  final double _baseHouseEdge = 0.01; // Dramatically reduced for more wins
-  final double _maxHouseEdge = 0.04;
-  double _currentHouseEdge = 0.01;
+  // Local balance tracking
+  int _localLionsManeBet = 0;
+  int _localRedPillBet = 0;
   
-  // Growth parameters - more exciting curve
-  double _baseGrowthPerSec = 1.0;
-  final double _maxGrowthPerSec = 3.5;
+  // Betting option
+  String _selectedBet = 'RedPill'; // 'RedPill' or 'LionsMane'
   
-  // Special round chances
-  final double _luckyRoundChance = 0.15; // 15% chance of a lucky round
-  final double _jackpotRoundChance = 0.05; // 5% chance of a huge multiplier potential
-  final double _guaranteedMinChance = 0.35; // 35% chance of guaranteed 2x+
+  // Enhanced gameplay variables
+  List<double> _graphPoints = [];
+  List<Map<String, dynamic>> _gameHistory = [];
+  final int _maxHistoryItems = 10;
+  final int _maxGraphPoints = 100;
   
-  // Excitement tracking
-  bool _isHighRiskMode = false;
-  bool _isAccelerating = false;
-  
-  // Round type flags
-  bool _isLuckyRound = false;
-  bool _isJackpotRound = false;
-  bool _isGuaranteedWinRound = false;
-  double? _presetCrashPoint;
-  
-  // Thresholds for visual effects
-  final double _excitementThreshold = 3.0;
-  final double _dangerThreshold = 5.0;
-  
-  // History of previous crashes
-  List<double> _crashHistory = [];
-  int _roundsPlayed = 0;
-  int _roundsWon = 0;
-  
-  // UI animation variables
-  double _shakeIntensity = 0.0;
-  Timer? _shakeTimer;
-  Color _crashLineColor = Colors.green;
-  double _pulseAnimation = 0.0;
-  Timer? _pulseTimer;
+  // Auto cash-out feature
+  double _autoCashOutValue = 2.0;
+  bool _autoEnabled = false;
+  TextEditingController _autoCashOutController = TextEditingController();
   
   @override
   void initState() {
     super.initState();
-    _redPillsAvailable = widget.redPillCollected + widget.currentRoundRedPills;
-    _lionsManeAvailable = widget.lionsManeCollected;
-    _betAmount = _calculateDefaultBet();
-    
-    // Start with some realistic history data for display purposes
-    _crashHistory = [
-      1.15, 1.87, 3.54, 2.21, 1.34, 4.32, 10.78, 1.92, 1.05, 2.65
-    ];
-    
-    // Start pulse animation for UI elements
-    _startPulseAnimation();
-    _determineRoundType();
+    _localLionsManeBet = 0;
+    _localRedPillBet = 0;
+    _autoCashOutController.text = _autoCashOutValue.toString();
   }
-
-  int _calculateDefaultBet() {
-    if (_useRedPills) {
-      return _redPillsAvailable > 0 ? (_redPillsAvailable ~/ 10).clamp(1, 25) : 5;
-    } else {
-      return _lionsManeAvailable > 0 ? (_lionsManeAvailable ~/ 10).clamp(1, 25) : 5;
-    }
-  }
-
+  
   @override
   void dispose() {
-    _gameTimer?.cancel();
-    _shakeTimer?.cancel();
-    _pulseTimer?.cancel();
+    gameTimer?.cancel();
+    _autoCashOutController.dispose();
     super.dispose();
   }
-  
-  // Toggle between Red Pills and Lions Mane
-  void _toggleCollectibleType() {
-    if (_hasStarted) return; // Don't allow switching during a game
+
+  // Generate a crash value with a more natural distribution
+  double _generateCrashValue() {
+    Random _random = Random();
+    double randomValue = _random.nextDouble();
     
-    setState(() {
-      _useRedPills = !_useRedPills;
-      _betAmount = _calculateDefaultBet();
-    });
-  }
-  
-  // Determine if this will be a special round
-  void _determineRoundType() {
-    // Reset round flags
-    _isLuckyRound = false;
-    _isJackpotRound = false;
-    _isGuaranteedWinRound = false;
-    _presetCrashPoint = null;
-    
-    double rand = _random.nextDouble();
-    
-    // Implement "hot streak" mechanics
-    if (_winningStreak >= 2) {
-      // During hot streaks, increase chance of another good round
-      _isLuckyRound = rand < 0.25; // 25% chance during hot streak
-      _isHotStreak = true;
+    if (randomValue < 0.70) {
+      // 70% chance of early crash (1.01x to 2.0x)
+      return 1.01 + _random.nextDouble() * 0.99;
+    } else if (randomValue < 0.95) {
+      // 25% chance of medium crash (2.0x to 10.0x)
+      return 2.0 + _random.nextDouble() * 8.0;
     } else {
-      // Normal lucky round chance
-      _isLuckyRound = rand < _luckyRoundChance;
-      _isHotStreak = false;
-    }
-    
-    // Jackpot round implementation
-    if (_random.nextDouble() < _jackpotRoundChance) {
-      _isJackpotRound = true;
-      _isLuckyRound = false; // Jackpot overrides lucky round
-    }
-    
-    // Guaranteed win implementation (especially after losses)
-    if (_losingStreak >= 3 || _random.nextDouble() < _guaranteedMinChance) {
-      _isGuaranteedWinRound = true;
-      // Set a minimum crash point between 2.0 and 3.5
-      _presetCrashPoint = 2.0 + _random.nextDouble() * 1.5;
-    }
-    
-    // Adaptive difficulty based on player performance
-    _adjustDifficulty();
-  }
-  
-  // Adjust game difficulty based on player performance
-  void _adjustDifficulty() {
-    // If player is on a winning streak, slightly increase difficulty
-    if (_winningStreak > 3) {
-      _currentHouseEdge = (_baseHouseEdge + (_winningStreak * 0.005)).clamp(_baseHouseEdge, _maxHouseEdge);
-    } 
-    // If player is on a losing streak, make the game easier
-    else if (_losingStreak >= 2) {
-      _currentHouseEdge = (_baseHouseEdge - (_losingStreak * 0.003)).clamp(0.001, _baseHouseEdge);
-    }
-    // Otherwise use base house edge
-    else {
-      _currentHouseEdge = _baseHouseEdge;
+      // 5% chance of late crash (10.0x to 20.0x or higher)
+      double baseValue = 10.0;
+      double expFactor = -log(_random.nextDouble()) * 5; // Exponential distribution
+      return baseValue + expFactor;
     }
   }
-  
-  void _startPulseAnimation() {
-    _pulseTimer = Timer.periodic(Duration(milliseconds: 100), (timer) {
-      setState(() {
-        _pulseAnimation = (_pulseAnimation + 0.1) % (2 * pi);
-      });
-    });
-  }
-  
-  // Start shake animation when getting close to crash
-  void _startShakeAnimation() {
-    if (_shakeTimer != null) return;
-    
-    _shakeTimer = Timer.periodic(Duration(milliseconds: 50), (timer) {
-      if (!_hasStarted || _isCrashed || _hasCashedOut) {
-        _shakeTimer?.cancel();
-        _shakeTimer = null;
-        setState(() {
-          _shakeIntensity = 0.0;
-        });
-        return;
-      }
-      
-      // Increase shake as multiplier increases
-      double intensity = ((_multiplier - _dangerThreshold) / 10).clamp(0.0, 1.0);
-      setState(() {
-        _shakeIntensity = intensity * 5.0 * _random.nextDouble();
-      });
-    });
-  }
-  
-  void _startGame() {
-    // Check if bet amount is valid
-    if (_betAmount <= 0) return;
-    
-    // Check if player has enough of the selected collectible
-    int availableAmount = _useRedPills ? _redPillsAvailable : _lionsManeAvailable;
-    if (_betAmount > availableAmount) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Not enough ${_useRedPills ? 'Red Pills' : 'Lions Mane'} for this bet'))
-      );
+
+  void startGame() {
+    if (_selectedBet == 'RedPill' && _localRedPillBet <= 0) {
+      _showInsufficientFundsDialog('Red Pills');
+      return;
+    }
+    if (_selectedBet == 'LionsMane' && _localLionsManeBet <= 0) {
+      _showInsufficientFundsDialog('Lions Mane');
       return;
     }
     
-    // Determine what type of round this will be
-    _determineRoundType();
-    
-    // Deduct bet amount immediately
     setState(() {
-      if (_useRedPills) {
-        _redPillsAvailable -= _betAmount;
+      // Reset game state
+      multiplier = 1.0;
+      gameRunning = true;
+      gameOver = false;
+      userCashedOut = false;
+      
+      // Reset current round tracking
+      _currentRoundRedPills = _selectedBet == 'RedPill' ? _localRedPillBet : 0;
+      _currentRoundLionsMane = _selectedBet == 'LionsMane' ? _localLionsManeBet : 0;
+      
+      // Reset local bet amounts
+      if (_selectedBet == 'RedPill') {
+        _localRedPillBet = 0;
       } else {
-        _lionsManeAvailable -= _betAmount;
+        _localLionsManeBet = 0;
       }
-      _hasStarted = true;
-      _isCrashed = false;
-      _hasCashedOut = false;
-      _multiplier = 1.0;
-      _isAccelerating = false;
-      _isHighRiskMode = false;
-      _baseGrowthPerSec = _isLuckyRound ? 1.2 : 1.0;
-      _shakeIntensity = 0.0;
+      
+      // Clear graph points for new game
+      _graphPoints = [1.0];
     });
     
-    // Calculate crash point before game starts for fairness
-    final crashPoint = _calculateCrashPoint();
-    print("DEBUG: Crash point for this round: $crashPoint");
+    // Generate crash point with improved natural distribution
+    double crashPoint = _generateCrashValue();
+    print('This round will crash at: ${crashPoint.toStringAsFixed(2)}x');
     
-    // Determine game timing parameters
-    int updateFrequencyMs = 50; // 20 updates per second for smooth animation
+    // Start the game loop with improved growth rate
+    double growthRate = 0.05; // Base growth rate
+    int interval = 50; // Update every 50ms
     
-    // Start the game loop
-    _gameTimer?.cancel(); // Make sure any existing timer is canceled
-    _gameTimer = Timer.periodic(Duration(milliseconds: updateFrequencyMs), (timer) {
-      if (_multiplier >= crashPoint) {
-        // Game crashes
-        setState(() {
-          _isCrashed = true;
-          _crashHistory.add(_multiplier);
-          if (_crashHistory.length > 10) {
-            _crashHistory.removeAt(0);
-          }
-          
-          // Update streak tracking
-          _losingStreak++;
-          _winningStreak = 0;
-          
-          // Update round statistics
-          _roundsPlayed++;
-          
-          // Update UI colors
-          _crashLineColor = Colors.red;
-        });
+    gameTimer = Timer.periodic(Duration(milliseconds: interval), (timer) {
+      if (!mounted) {
         timer.cancel();
+        return;
+      }
+      
+      setState(() {
+        // Use easing function for more realistic volatility
+        double speedFactor = 1 / (1 + multiplier * 0.1);
+        multiplier += growthRate * speedFactor;
         
-      } else if (!_isCrashed) {
-        // Increase multiplier
-        setState(() {
-          // Get base growth for this tick
-          double growthPerTick = _baseGrowthPerSec * updateFrequencyMs / 1000;
+        // Format to 2 decimal places for display
+        multiplier = double.parse(multiplier.toStringAsFixed(2));
+        
+        // Add point to graph (limit number of points to avoid performance issues)
+        if (_graphPoints.length < _maxGraphPoints) {
+          _graphPoints.add(multiplier);
+        } else {
+          _graphPoints.removeAt(0);
+          _graphPoints.add(multiplier);
+        }
+        
+        // Check for auto cash out
+        if (_autoEnabled && multiplier >= _autoCashOutValue && !userCashedOut) {
+          cashOut();
+        }
+        
+        // Check for crash
+        if (multiplier >= crashPoint) {
+          gameRunning = false;
+          gameOver = true;
+          timer.cancel();
           
-          // Accelerating growth curve for excitement
-          if (_multiplier > 1.5 && _multiplier < 3.0) {
-            growthPerTick *= 1.05 + (_multiplier - 1.5) * 0.1;
-          } else if (_multiplier >= 3.0) {
-            growthPerTick *= 1.2 + (_multiplier - 3.0) * 0.05;
-            _isAccelerating = true;
-            
-            // Make it riskier-looking past danger threshold
-            if (_multiplier >= _dangerThreshold) {
-              _isHighRiskMode = true;
-              // Start shake animation when getting risky
-              if (_shakeTimer == null) {
-                _startShakeAnimation();
-              }
-            }
-          }
+          // Add to game history
+          _addToHistory(multiplier, false);
           
-          // Apply growth
-          _multiplier += growthPerTick;
-          
-          // Increase base growth rate over time to create excitement
-          if (_baseGrowthPerSec < _maxGrowthPerSec) {
-            _baseGrowthPerSec += 0.002;
-          }
-        });
-      }
+          // Show crash message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('CRASHED AT ${multiplier.toStringAsFixed(2)}x!'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      });
     });
   }
 
-  // NEW: Reset game state to allow playing again
-  void _resetGame() {
-    setState(() {
-      // Reset game state variables
-      _isCrashed = false;
-      _hasStarted = false;
-      _hasCashedOut = false;
-      _multiplier = 1.0;
-      _isAccelerating = false;
-      _isHighRiskMode = false;
-      _shakeIntensity = 0.0;
-      _baseGrowthPerSec = 1.0;
-      
-      // Cancel any active timers
-      _gameTimer?.cancel();
-      _shakeTimer?.cancel();
-      
-      // Reset bet amount to default
-      _betAmount = _calculateDefaultBet();
-      
-      // Determine new round type
-      _determineRoundType();
-    });
-  }
-
-  // Improved crash point calculation algorithm for more fun and engagement
-  double _calculateCrashPoint() {
-    // If this is a preset outcome round, use that value
-    if (_presetCrashPoint != null) {
-      return _presetCrashPoint!;
-    }
-    
-    // Basic crash algorithm with adjustable house edge
-    double r = _random.nextDouble();
-    
-    // Base formula with dynamic house edge for hot/cold streaks
-    double houseEdge = _currentHouseEdge;
-    double crashPoint;
-    
-    // Lucky rounds have very low house edge
-    if (_isLuckyRound) {
-      houseEdge *= 0.3; // 70% reduction in house edge
-    }
-    
-    // Jackpot rounds have special high multiplier potential
-    if (_isJackpotRound) {
-      // 10-100x potential with exponential distribution
-      double jackpotValue = -10.0 * log(1.0 - (_random.nextDouble() * 0.98));
-      return max(jackpotValue, 10.0).clamp(10.0, 100.0);
-    }
-    
-    // Default crash point calculation with adjusted parameters 
-    double baseValue = 0.1 / (houseEdge * (1.0 - r));
-    crashPoint = max(1.0, baseValue);
-    
-    // Make sure we get plenty of rounds in the 2x-5x sweet spot
-    if (crashPoint < 1.2) { 
-      // 50% of subpar rounds get bumped up to 2x-5x
-      if (_random.nextDouble() < 0.5) {
-        crashPoint = 2.0 + _random.nextDouble() * 3.0;
-      }
-    }
-    
-    // Add occasional extreme multipliers for excitement
-    if (_random.nextDouble() < 0.08) { // 8% chance
-      double bonus = _random.nextDouble() * 15.0;
-      crashPoint += bonus;
-    }
-    
-    // Create round number attractions (e.g. 2.00x, 3.00x) for psychological appeal
-    if (_random.nextDouble() < 0.15) { // 15% chance
-      crashPoint = crashPoint.roundToDouble();
-    }
-    
-    // Make sure we never return below 1.01x
-    return max(1.01, crashPoint);
-  }
-
-  void _cashOut() {
-    if (!_hasStarted || _isCrashed || _hasCashedOut) return;
+  void cashOut() {
+    if (!gameRunning || userCashedOut) return;
     
     setState(() {
-      _hasCashedOut = true;
-      _cashedOutAt = _multiplier;
+      gameRunning = false;
+      userCashedOut = true;
+      
+      // Add to game history
+      _addToHistory(multiplier, true);
       
       // Calculate winnings
-      int winnings = (_betAmount * _multiplier).floor();
-      
-      // Add winnings to appropriate collection
-      if (_useRedPills) {
-        _redPillsAvailable += winnings;
-        
-        // Report net winnings (subtract original bet amount) to parent component
-        int netWinnings = winnings - _betAmount;
-        widget.onRedPillsEarned(netWinnings);
+      if (_selectedBet == 'RedPill') {
+        int winnings = (_currentRoundRedPills * multiplier).floor();
+        _redPillsCashedOut = winnings;
+        // Update player stats via callback
+        widget.onCollectibleChange('RedPill', winnings);
       } else {
-        _lionsManeAvailable += winnings;
-        // Note: We don't have a callback for Lions Mane yet, could add in future
+        // Add lions mane cash-out logic, similar to red pills
+        int winnings = (_currentRoundLionsMane * multiplier).floor();
+        _lionsManeCashedOut = winnings;
+        // Update player stats via callback
+        widget.onCollectibleChange('LionsMane', winnings);
       }
       
-      // Update streak tracking
-      _winningStreak++;
-      _losingStreak = 0;
-      
-      // Update round statistics
-      _roundsPlayed++;
-      _roundsWon++;
-      
-      // Update UI colors
-      _crashLineColor = Colors.green;
-      
-      // Confirmation message
-      String collectibleType = _useRedPills ? "Red Pills" : "Lions Mane";
+      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Successfully cashed out $winnings $collectibleType!'))
+        SnackBar(
+          content: Text('Cashed out at ${multiplier.toStringAsFixed(2)}x!'),
+          backgroundColor: Colors.green,
+        ),
       );
     });
     
-    // Game continues running in the background after cashing out
-  }
-  
-  // Helper methods for UI
-  void _increaseBet() {
-    setState(() {
-      int availableAmount = _useRedPills ? _redPillsAvailable : _lionsManeAvailable;
-      if (_betAmount < availableAmount) {
-        // Increase by 5 or 20% of available, whichever is smaller
-        int increment = min(5, (availableAmount * 0.2).ceil());
-        _betAmount += increment;
-      }
-    });
+    gameTimer?.cancel();
   }
 
-  void _decreaseBet() {
-    setState(() {
-      if (_betAmount > 5) {
-        _betAmount -= 5;
-      } else if (_betAmount > 1) {
-        _betAmount = 1;  // Allow reducing to minimum bet of 1
-      }
-    });
+  void _showInsufficientFundsDialog(String currency) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Insufficient $currency'),
+        content: Text('You need to bet at least 1 $currency to play.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
-  // Format multiplier with appropriate precision based on value
-  String _formatMultiplier(double value) {
-    if (value >= 10) {
-      return value.toStringAsFixed(1) + 'x';
-    } else {
-      return value.toStringAsFixed(2) + 'x';
-    }
-  }
-  
-  // Get appropriate color for the multiplier display
-  Color _getMultiplierColor() {
-    if (_isCrashed) return Colors.red;
-    if (_hasCashedOut) return Colors.green;
+  // New function to add games to history
+  void _addToHistory(double crashPoint, bool userCashedOut) {
+    _gameHistory.add({
+      'multiplier': crashPoint,
+      'cashedOut': userCashedOut,
+      'betType': _selectedBet,
+      'betAmount': _selectedBet == 'RedPill' ? _currentRoundRedPills : _currentRoundLionsMane,
+    });
     
-    // Dynamic color based on current multiplier
-    if (_multiplier >= _dangerThreshold) {
-      return Colors.red.shade400;
-    } else if (_multiplier >= _excitementThreshold) {
-      return Colors.orange;
-    } else if (_multiplier >= 2.0) {
-      return Colors.green;
-    } else {
-      return Colors.white;
-    }
-  }
-  
-  // Get background color for the multiplier display
-  Color _getMultiplierBackgroundColor() {
-    if (_isCrashed) return Colors.red.withOpacity(0.3);
-    if (_hasCashedOut) return Colors.green.withOpacity(0.3);
-    
-    if (_isHighRiskMode) {
-      // Pulsate between red shades for excitement
-      double t = (sin(_pulseAnimation) + 1) / 2; // 0 to 1
-      return Color.lerp(
-        Colors.red.shade900.withOpacity(0.7),
-        Colors.red.shade700.withOpacity(0.5),
-        t
-      )!;
-    } else if (_isAccelerating) {
-      return Colors.orange.withOpacity(0.3);
-    } else {
-      return Colors.black.withOpacity(0.7);
+    // Limit history size
+    if (_gameHistory.length > _maxHistoryItems) {
+      _gameHistory.removeAt(0);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Get image path and name for current collectible type
-    final String collectibleImagePath = _useRedPills 
-        ? 'assets/images/red_pill.png' 
-        : 'assets/images/lions_mane.png';
-    
-    final String collectibleName = _useRedPills ? 'Red Pills' : 'Lions Mane';
-    final int availableAmount = _useRedPills ? _redPillsAvailable : _lionsManeAvailable;
-
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: Text('Crash Game', style: TextStyle(color: Colors.white)),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: widget.onClose,
-        ),
+        title: Text("Crypto Crash", style: TextStyle(color: Colors.white)),
         actions: [
-          // Add toggle button to switch between Red Pills and Lions Mane
           IconButton(
-            icon: Image.asset(
-              collectibleImagePath,
-              width: 24,
-              height: 24,
-            ),
-            onPressed: _hasStarted ? null : _toggleCollectibleType,
-            tooltip: 'Switch to ${_useRedPills ? 'Lions Mane' : 'Red Pills'}',
-          )
+            icon: Icon(Icons.close, color: Colors.white),
+            onPressed: widget.onClose,
+          ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header section with collectible count and bet controls
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Collectible balance
-                  Row(
-                    children: [
-                      Image.asset(
-                        collectibleImagePath,
-                        width: 24,
-                        height: 24,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(Icons.image, color: Colors.amber, size: 24);
-                        },
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        '$availableAmount',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  // Bet amount controls
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.remove_circle, color: Colors.white),
-                        onPressed: _hasStarted ? null : _decreaseBet,
-                      ),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      body: Stack(
+        children: [
+          // Background
+          Positioned.fill(
+            child: ScrollingBackground(scrollSpeed: 80.0),
+          ),
+          
+          // Game content
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Game History Row
+                Container(
+                  height: 40,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _gameHistory.length,
+                    itemBuilder: (context, index) {
+                      final item = _gameHistory[index];
+                      final bool wasCashedOut = item['cashedOut'] ?? false;
+                      final double mult = item['multiplier'] ?? 1.0;
+                      
+                      // Color based on multiplier value
+                      Color color;
+                      if (mult < 1.5) {
+                        color = Colors.red;
+                      } else if (mult < 3.0) {
+                        color = Colors.orange;
+                      } else if (mult < 10.0) {
+                        color = wasCashedOut ? Colors.green : Colors.red;
+                      } else {
+                        color = wasCashedOut ? Colors.blue : Colors.purple;
+                      }
+                      
+                      return Container(
+                        margin: EdgeInsets.only(right: 8),
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.grey[900],
-                          borderRadius: BorderRadius.circular(4),
+                          color: color,
+                          borderRadius: BorderRadius.circular(20),
                         ),
+                        alignment: Alignment.center,
                         child: Text(
-                          'BET: $_betAmount',
+                          '${mult.toStringAsFixed(2)}x',
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.add_circle, color: Colors.white),
-                        onPressed: _hasStarted ? null : _increaseBet,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            // Win rate display
-            if (_roundsPlayed > 0)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Text(
-                  'Win Rate: ${(_roundsWon / _roundsPlayed * 100).toStringAsFixed(1)}%',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
+                      );
+                    },
                   ),
                 ),
-              ),
-            
-            // Main display showing crash multiplier
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                margin: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[900],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Stack(
+                
+                SizedBox(height: 16),
+                
+                // Balance indicators
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // Crash graph visualization
-                    CustomPaint(
-                      size: Size(double.infinity, double.infinity),
-                      painter: CrashGraphPainter(
-                        multiplier: _multiplier,
-                        isCrashed: _isCrashed,
-                        lineColor: _crashLineColor,
-                        isHighRiskMode: _isHighRiskMode,
-                        pulseAnimation: _pulseAnimation,
+                    // Lions Mane balance
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[900],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Image.asset('assets/images/lions_mane.png', width: 24, height: 24),
+                          SizedBox(width: 8),
+                          Text('${widget.lionsManeCollected}', 
+                            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                        ],
                       ),
                     ),
                     
-                    // Center multiplier display with shake animation
-                    Center(
-                      child: Transform.translate(
-                        offset: _isHighRiskMode ? 
-                          Offset(_random.nextDouble() * _shakeIntensity - _shakeIntensity/2,
-                                _random.nextDouble() * _shakeIntensity - _shakeIntensity/2) : 
-                          Offset.zero,
-                        child: AnimatedContainer(
-                          duration: Duration(milliseconds: 150),
-                          padding: EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: _getMultiplierBackgroundColor(),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _getMultiplierColor().withOpacity(0.3),
-                                blurRadius: 15,
-                                spreadRadius: 5,
-                              ),
-                            ],
-                            border: Border.all(
-                              color: _getMultiplierColor().withOpacity(0.7),
-                              width: 2,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _isCrashed 
-                                  ? 'CRASHED!' 
-                                  : (_hasCashedOut ? 'CASHED OUT' : 'MULTIPLIER'),
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                _hasCashedOut 
-                                  ? _formatMultiplier(_cashedOutAt)
-                                  : _formatMultiplier(_multiplier),
-                                style: TextStyle(
-                                  color: _getMultiplierColor(),
-                                  fontSize: 42,
-                                  fontWeight: FontWeight.bold,
-                                  shadows: [
-                                    Shadow(
-                                      blurRadius: 10.0,
-                                      color: _getMultiplierColor().withOpacity(0.7),
-                                      offset: Offset(0, 0),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                    // Red Pill balance
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[900],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Image.asset('assets/images/red_pill.png', width: 24, height: 24),
+                          SizedBox(width: 8),
+                          Text('${widget.redPillCollected}', 
+                            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            
-            // Previous rounds history
-            Container(
-              height: 60,
-              margin: EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Text(
-                    'HISTORY:',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.bold,
+                
+                SizedBox(height: 20),
+                
+                // Game display area with graph
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: gameRunning 
+                        ? (userCashedOut ? Colors.green.withOpacity(0.2) : Colors.grey[800])
+                        : (gameOver ? Colors.red.withOpacity(0.2) : Colors.grey[900]),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: gameRunning 
+                          ? (userCashedOut ? Colors.green : Colors.grey.shade700) 
+                          : (gameOver ? Colors.red : Colors.grey.shade800),
+                        width: 2,
+                      ),
                     ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _crashHistory.length,
-                      itemBuilder: (context, index) {
-                        final item = _crashHistory[_crashHistory.length - 1 - index];
-                        Color bgColor;
-                        if (item >= 10) {
-                          bgColor = Colors.purple.withOpacity(0.7); // Exceptional
-                        } else if (item >= 5) {
-                          bgColor = Colors.blue.withOpacity(0.7); // Very good
-                        } else if (item >= 2) {
-                          bgColor = Colors.green.withOpacity(0.7); // Good
-                        } else if (item >= 1.5) {
-                          bgColor = Colors.amber.withOpacity(0.7); // Moderate
-                        } else {
-                          bgColor = Colors.red.withOpacity(0.7); // Bad
-                        }
-                        
-                        return Container(
-                          margin: EdgeInsets.only(right: 8),
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: bgColor,
-                            borderRadius: BorderRadius.circular(4),
-                            boxShadow: [
-                              BoxShadow(
-                                color: bgColor.withOpacity(0.5),
-                                blurRadius: 5,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                          alignment: Alignment.center,
+                    child: Column(
+                      children: [
+                        // Multiplier display
+                        Padding(
+                          padding: const EdgeInsets.only(top: 20.0),
                           child: Text(
-                            _formatMultiplier(item),
+                            gameRunning || gameOver ? multiplier.toStringAsFixed(2) + 'x' : 'READY',
                             style: TextStyle(
-                              color: Colors.white,
+                              fontSize: 64, 
+                              color: gameOver && !userCashedOut 
+                                ? Colors.red 
+                                : userCashedOut 
+                                  ? Colors.green
+                                  : Colors.white,
                               fontWeight: FontWeight.bold,
+                              shadows: [
+                                Shadow(
+                                  color: gameOver && !userCashedOut 
+                                    ? Colors.red.withOpacity(0.6) 
+                                    : userCashedOut 
+                                      ? Colors.green.withOpacity(0.6)
+                                      : Colors.white.withOpacity(0.3),
+                                  blurRadius: 20,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
                             ),
                           ),
-                        );
+                        ),
+                        
+                        // Game status message
+                        if (gameOver && !userCashedOut)
+                          _buildAnimatedStatusText('CRASHED!', Colors.red),
+                        if (userCashedOut)
+                          _buildAnimatedStatusText('CASHED OUT!', Colors.green),
+                          
+                        // Show winnings when cashed out
+                        if (userCashedOut)
+                          _buildWinningsDisplay(),
+                        
+                        // Graph
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: _graphPoints.isEmpty
+                              ? Center(child: Text('Start game to see graph', style: TextStyle(color: Colors.grey)))
+                              : CustomPaint(
+                                  size: Size.infinite,
+                                  painter: _CrashGraphPainter(
+                                    points: _graphPoints,
+                                    maxY: max(10.0, _graphPoints.isNotEmpty ? _graphPoints.reduce(max) + 1 : 10.0),
+                                    gameOver: gameOver,
+                                    cashedOut: userCashedOut,
+                                    currentMultiplier: multiplier,
+                                  ),
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                SizedBox(height: 16),
+                
+                // Auto Cash Out Controls (only when not playing)
+                if (!gameRunning && !gameOver)
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _autoEnabled,
+                        onChanged: (value) {
+                          setState(() {
+                            _autoEnabled = value ?? false;
+                          });
+                        },
+                        activeColor: Colors.green,
+                      ),
+                      Text(
+                        'Auto Cash Out at',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: _autoCashOutController,
+                          keyboardType: TextInputType.number,
+                          style: TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: 'Multiplier',
+                            labelStyle: TextStyle(color: Colors.grey),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.grey),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.white),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              _autoCashOutValue = double.tryParse(value) ?? 2.0;
+                            });
+                          },
+                        ),
+                      ),
+                      Text(
+                        'x',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                
+                SizedBox(height: 12),
+                
+                // Game controls (betting, cash out, etc.)
+                _buildGameControls(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Helper widget for animated status text
+  Widget _buildAnimatedStatusText(String text, Color color) {
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 300),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: color, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.5),
+            blurRadius: 20,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Text(
+        text, 
+        style: TextStyle(
+          color: color, 
+          fontSize: 24, 
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  // Helper widget for winnings display
+  Widget _buildWinningsDisplay() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            _selectedBet == 'RedPill' 
+              ? 'assets/images/red_pill.png' 
+              : 'assets/images/lions_mane.png', 
+            width: 28, 
+            height: 28
+          ),
+          SizedBox(width: 8),
+          Text(
+            '+${_selectedBet == 'RedPill' ? _redPillsCashedOut : _lionsManeCashedOut}',
+            style: TextStyle(
+              color: Colors.green,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              shadows: [
+                Shadow(
+                  color: Colors.green.withOpacity(0.6),
+                  blurRadius: 10,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper widget for game controls
+  Widget _buildGameControls() {
+    if (!gameRunning && !gameOver && !userCashedOut) {
+      return Column(
+        children: [
+          // Bet selection toggle
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildBetSelector('RedPill', 'Red Pill'),
+              SizedBox(width: 16),
+              _buildBetSelector('LionsMane', 'Lions Mane'),
+            ],
+          ),
+          
+          SizedBox(height: 16),
+          
+          // Bet amount slider with improved styling
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade900,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Text('BET: ', 
+                  style: TextStyle(color: _selectedBet == 'RedPill' ? Colors.red : Colors.amber, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: SliderTheme(
+                    data: SliderThemeData(
+                      trackHeight: 8,
+                      activeTrackColor: _selectedBet == 'RedPill' ? Colors.red.withOpacity(0.8) : Colors.amber.withOpacity(0.8),
+                      inactiveTrackColor: Colors.grey.shade800,
+                      thumbColor: _selectedBet == 'RedPill' ? Colors.red : Colors.amber,
+                      overlayColor: (_selectedBet == 'RedPill' ? Colors.red : Colors.amber).withOpacity(0.2),
+                      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 12),
+                      overlayShape: RoundSliderOverlayShape(overlayRadius: 24),
+                    ),
+                    child: Slider(
+                      value: _selectedBet == 'RedPill' 
+                        ? _localRedPillBet.toDouble() 
+                        : _localLionsManeBet.toDouble(),
+                      min: 0,
+                      max: _selectedBet == 'RedPill'
+                        ? widget.redPillCollected.toDouble()
+                        : widget.lionsManeCollected.toDouble(),
+                      divisions: max(1, _selectedBet == 'RedPill'
+                        ? widget.redPillCollected
+                        : widget.lionsManeCollected),
+                      onChanged: (value) {
+                        setState(() {
+                          if (_selectedBet == 'RedPill') {
+                            _localRedPillBet = value.round();
+                          } else {
+                            _localLionsManeBet = value.round();
+                          }
+                        });
                       },
                     ),
                   ),
-                ],
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _selectedBet == 'RedPill' ? Colors.red : Colors.amber,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    _selectedBet == 'RedPill' ? '$_localRedPillBet' : '$_localLionsManeBet',
+                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      if (_selectedBet == 'RedPill') {
+                        _localRedPillBet = widget.redPillCollected;
+                      } else {
+                        _localLionsManeBet = widget.lionsManeCollected;
+                      }
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[800],
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  ),
+                  child: Text('MAX', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+          
+          SizedBox(height: 20),
+          
+          // Start button with improved styling
+          Container(
+            width: double.infinity,
+            height: 60,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                elevation: 5,
+                shadowColor: Colors.amber.withOpacity(0.5),
+              ),
+              onPressed: startGame,
+              child: Text(
+                'PLACE BET & PLAY', 
+                style: TextStyle(
+                  fontSize: 22, 
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  letterSpacing: 2,
+                ),
               ),
             ),
-            
-            // Action buttons
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _isCrashed ? Colors.blue : (_hasStarted ? Colors.grey : Colors.green),
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      // Updated onPressed logic:
-                      // If crashed, reset the game
-                      // If game is running or cashed out, button is disabled
-                      // If game hasn't started, start a new game
-                      onPressed: _isCrashed ? 
-                        _resetGame : 
-                        ((!_hasStarted && availableAmount >= _betAmount) ? _startGame : null),
-                      child: Text(
-                        _isCrashed ? 'PLAY AGAIN' : 'START',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: (!_hasStarted || _isCrashed || _hasCashedOut) 
-                            ? Colors.grey 
-                            : Colors.amber,
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      onPressed: (!_hasStarted || _isCrashed || _hasCashedOut) 
-                          ? null 
-                          : _cashOut,
-                      child: Text(
-                        'CASH OUT',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+          ),
+        ],
+      );
+    } else if (gameRunning) {
+      // Cash out button during game with improved styling
+      return Container(
+        width: double.infinity,
+        height: 60,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            elevation: 5,
+            shadowColor: Colors.green.withOpacity(0.5),
+          ),
+          onPressed: cashOut,
+          child: Text(
+            'CASH OUT ${_selectedBet == "RedPill" ? (_currentRoundRedPills * multiplier).toStringAsFixed(0) : (_currentRoundLionsMane * multiplier).toStringAsFixed(0)}', 
+            style: TextStyle(
+              fontSize: 22, 
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+          ),
+        ),
+      );
+    } else {
+      // Play again button after game with improved styling
+      return Container(
+        width: double.infinity,
+        height: 60,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            elevation: 5,
+            shadowColor: Colors.blue.withOpacity(0.5),
+          ),
+          onPressed: () {
+            setState(() {
+              gameOver = false;
+              userCashedOut = false;
+            });
+          },
+          child: Text(
+            'PLAY AGAIN', 
+            style: TextStyle(
+              fontSize: 22, 
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  // Improved bet selector with animation
+  Widget _buildBetSelector(String betType, String label) {
+    bool isSelected = _selectedBet == betType;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedBet = betType;
+        });
+      },
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 300),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected 
+            ? (betType == 'RedPill' ? Colors.red : Colors.amber) 
+            : Colors.grey.shade800,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.white : Colors.transparent,
+            width: 2,
+          ),
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: (betType == 'RedPill' ? Colors.red : Colors.amber).withOpacity(0.4),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            )
+          ] : [],
+        ),
+        child: Row(
+          children: [
+            Image.asset(
+              betType == 'RedPill' ? 'assets/images/red_pill.png' : 'assets/images/lions_mane.png',
+              width: 28,
+              height: 28,
+            ),
+            SizedBox(width: 10),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.black : Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
             ),
           ],
@@ -818,209 +795,170 @@ class _CrashMiniGameState extends State<CrashMiniGame> {
   }
 }
 
-class CrashGraphPainter extends CustomPainter {
-  final double multiplier;
-  final bool isCrashed;
-  final Color lineColor;
-  final bool isHighRiskMode;
-  final double pulseAnimation;
+// Add this to your CrashMiniGame class, if it's defined as a wrapper
+class CrashMiniGame extends StatelessWidget {
+  final int lionsManeCollected;
+  final int redPillCollected;
+  final Function(int) onRedPillsEarned;
+  final Function(int)? onLionsManeEarned;
+  final VoidCallback? onClose;
+  final int currentRoundRedPills;
+
+  const CrashMiniGame({
+    Key? key,
+    required this.lionsManeCollected,
+    required this.redPillCollected,
+    required this.onRedPillsEarned,
+    this.onLionsManeEarned,
+    this.onClose,
+    required this.currentRoundRedPills,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return CrashMiniGameScreen(
+      lionsManeCollected: lionsManeCollected,
+      redPillCollected: redPillCollected,
+      onCollectibleChange: (String type, int amount) {
+        if (type == 'RedPill') {
+          onRedPillsEarned(amount);
+        } else if (type == 'LionsMane' && onLionsManeEarned != null) {
+          onLionsManeEarned!(amount);
+        }
+      },
+      onClose: onClose,
+    );
+  }
+}
+
+// Add this class outside of the State class
+class _CrashGraphPainter extends CustomPainter {
+  final List<double> points;
+  final double maxY;
+  final bool gameOver;
+  final bool cashedOut;
+  final double currentMultiplier;
   
-  CrashGraphPainter({
-    required this.multiplier,
-    required this.isCrashed,
-    required this.lineColor,
-    required this.isHighRiskMode,
-    required this.pulseAnimation,
+  _CrashGraphPainter({
+    required this.points,
+    required this.maxY,
+    required this.gameOver,
+    required this.cashedOut,
+    required this.currentMultiplier,
   });
   
   @override
   void paint(Canvas canvas, Size size) {
-    // Draw background grid
-    _drawGrid(canvas, size);
+    if (points.isEmpty) return;
     
-    // Draw crash line
-    _drawCrashLine(canvas, size);
-  }
-  
-  void _drawGrid(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.grey.withOpacity(0.2)
-      ..strokeWidth = 1.0;
-      
-    // Draw horizontal lines
-    for (int i = 1; i <= 10; i++) {
-      final y = size.height - (size.height * i / 10);
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        paint,
-      );
-    }
-    
-    // Draw vertical lines
-    for (int i = 1; i <= 10; i++) {
-      final x = size.width * i / 10;
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        paint,
-      );
-    }
-  }
-  
-  void _drawCrashLine(Canvas canvas, Size size) {
-    // Use a more exciting color scheme based on risk level
-    Color baseColor = lineColor;
-    if (isHighRiskMode && !isCrashed) {
-      // Create flaming effect for high risk mode
-      double t = (sin(pulseAnimation) + 1) / 2; // 0 to 1
-      baseColor = Color.lerp(Colors.red, Colors.orange, t)!;
-    }
-    
-    final paint = Paint()
-      ..color = baseColor
-      ..strokeWidth = 3.0
+    // Setup
+    final Paint linePaint = Paint()
+      ..color = cashedOut ? Colors.green : (gameOver ? Colors.red : Colors.amber)
+      ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
-      
-    // Background glow for high risk mode
-    if (isHighRiskMode && !isCrashed) {
-      final glowPaint = Paint()
-        ..color = baseColor.withOpacity(0.3)
-        ..strokeWidth = 7.0
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-        
-      // Draw the glow effect
-      _drawCrashCurve(canvas, size, glowPaint);
-    }
     
-    // Fill area beneath curve
-    final fillPaint = Paint()
+    final Paint backgroundPaint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          baseColor.withOpacity(0.3),
-          baseColor.withOpacity(0.0),
+          cashedOut ? Colors.green.withOpacity(0.2) : 
+           (gameOver ? Colors.red.withOpacity(0.2) : Colors.amber.withOpacity(0.2)),
+          Colors.transparent,
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
       ..style = PaintingStyle.fill;
-      
-    // Draw fill and line
-    _drawCrashArea(canvas, size, fillPaint);
-    _drawCrashCurve(canvas, size, paint);
     
-    // Draw crash indicator if crashed
-    if (isCrashed) {
-      _drawCrashIndicator(canvas, size);
+    // Draw axes
+    final Paint axisPaint = Paint()
+      ..color = Colors.grey.shade600
+      ..strokeWidth = 1;
+    
+    // Y-axis
+    canvas.drawLine(
+      Offset(0, 0),
+      Offset(0, size.height),
+      axisPaint,
+    );
+    
+    // X-axis
+    canvas.drawLine(
+      Offset(0, size.height),
+      Offset(size.width, size.height),
+      axisPaint,
+    );
+    
+    // Create path for the line
+    final Path path = Path();
+    
+    // Draw grid lines
+    final Paint gridPaint = Paint()
+      ..color = Colors.grey.shade800
+      ..strokeWidth = 0.5;
+    
+    // Horizontal grid lines (multiplier values)
+    for (double i = 1.0; i <= maxY; i += 1.0) {
+      final double y = size.height - (i / maxY) * size.height;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+      
+      // Add multiplier labels
+      TextSpan span = TextSpan(
+        text: '${i.toStringAsFixed(1)}x',
+        style: TextStyle(color: Colors.grey.shade400, fontSize: 10),
+      );
+      TextPainter tp = TextPainter(
+        text: span,
+        textDirection: TextDirection.ltr,
+      );
+      tp.layout();
+      tp.paint(canvas, Offset(5, y - 15));
     }
-  }
-  
-  void _drawCrashCurve(Canvas canvas, Size size, Paint paint) {
-    final path = Path();
     
-    // Starting point at bottom left
-    path.moveTo(0, size.height);
+    // Calculate points
+    double xStep = size.width / (points.length - 1 > 0 ? points.length - 1 : 1);
+    double maxValue = maxY;
     
-    // Calculate how far along the curve to draw based on current multiplier
-    // Cap at 20x for visual purposes, log scale after that
-    final maxVisibleMultiplier = 20.0;
-    final visibleMultiplier = min(multiplier, maxVisibleMultiplier);
-    final progressRatio = (visibleMultiplier - 1.0) / (maxVisibleMultiplier - 1.0);
+    // Start the path
+    double startX = 0;
+    double startY = size.height - (points.first / maxValue) * size.height;
+    path.moveTo(startX, startY);
     
-    // Draw exponential curve with more dramatic shape
-    for (double i = 0; i <= progressRatio; i += 0.01) {
-      // Use a more dramatic curve shape
-      final x = i * size.width;
-      final normalizedY = 1.0 - pow(i, 0.7); // More dramatic than linear
-      final y = normalizedY * size.height;
-      
-      // Add small random variations to make the line more interesting
-      final wobble = isHighRiskMode ? sin(i * 50) * 2 : 0.0;
-      
-      path.lineTo(x, y + wobble);
-    }
-    
-    // Draw the path
-    canvas.drawPath(path, paint);
-  }
-  
-  void _drawCrashArea(Canvas canvas, Size size, Paint fillPaint) {
-    final path = Path();
-    
-    // Starting point at bottom left
-    path.moveTo(0, size.height);
-    
-    // Calculate how far along the curve to draw
-    final maxVisibleMultiplier = 20.0;
-    final visibleMultiplier = min(multiplier, maxVisibleMultiplier);
-    final progressRatio = (visibleMultiplier - 1.0) / (maxVisibleMultiplier - 1.0);
-    
-    // Draw the top edge following the curve
-    for (double i = 0; i <= progressRatio; i += 0.01) {
-      final x = i * size.width;
-      final normalizedY = 1.0 - pow(i, 0.7);
-      final y = normalizedY * size.height;
+    // Add points to path
+    for (int i = 1; i < points.length; i++) {
+      double x = i * xStep;
+      double y = size.height - (points[i] / maxValue) * size.height;
       path.lineTo(x, y);
     }
     
-    // Complete the fill path
-    path.lineTo(progressRatio * size.width, size.height);
-    path.close();
+    // Create a filled path for the area under the curve
+    final Path fillPath = Path.from(path);
+    fillPath.lineTo(size.width, size.height);
+    fillPath.lineTo(0, size.height);
+    fillPath.close();
     
-    // Draw fill
-    canvas.drawPath(path, fillPaint);
-  }
-  
-  void _drawCrashIndicator(Canvas canvas, Size size) {
-    // Calculate end position of curve
-    final maxVisibleMultiplier = 20.0;
-    final visibleMultiplier = min(multiplier, maxVisibleMultiplier);
-    final progressRatio = (visibleMultiplier - 1.0) / (maxVisibleMultiplier - 1.0);
-    final x = progressRatio * size.width;
-    final normalizedY = 1.0 - pow(progressRatio, 0.7);
-    final y = normalizedY * size.height;
+    // Draw the filled area
+    canvas.drawPath(fillPath, backgroundPaint);
     
-    // Draw crash explosion effect
-    final explosionPaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.fill;
+    // Draw the line
+    canvas.drawPath(path, linePaint);
+    
+    // Draw current multiplier indicator
+    if (!gameOver) {
+      final Paint dotPaint = Paint()
+        ..color = Colors.white
+        ..strokeWidth = 8
+        ..strokeCap = StrokeCap.round;
       
-    canvas.drawCircle(Offset(x, y), 10, explosionPaint);
-    
-    // Draw "CRASH!" text with dynamic sizing
-    final fontSize = min(24.0, size.width / 15);
-    final textSpan = TextSpan(
-      text: "CRASH!",
-      style: TextStyle(
-        color: Colors.red,
-        fontSize: fontSize,
-        fontWeight: FontWeight.bold,
-        shadows: [
-          Shadow(
-            blurRadius: 3.0,
-            color: Colors.black,
-            offset: Offset(1, 1),
-          ),
-        ],
-      ),
-    );
-    
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-    );
-    
-    textPainter.layout(minWidth: 0, maxWidth: size.width);
-    textPainter.paint(canvas, Offset(x - textPainter.width / 2, y - textPainter.height - 15));
+      final double lastX = (points.length - 1) * xStep;
+      final double lastY = size.height - (points.last / maxValue) * size.height;
+      
+      canvas.drawPoints(PointMode.points, [Offset(lastX, lastY)], dotPaint);
+    }
   }
   
   @override
-  bool shouldRepaint(CrashGraphPainter oldDelegate) {
-    return multiplier != oldDelegate.multiplier ||
-        isCrashed != oldDelegate.isCrashed ||
-        lineColor != oldDelegate.lineColor ||
-        isHighRiskMode != oldDelegate.isHighRiskMode ||
-        pulseAnimation != oldDelegate.pulseAnimation;
-  }
+  bool shouldRepaint(_CrashGraphPainter oldDelegate) => 
+    oldDelegate.points != points ||
+    oldDelegate.gameOver != gameOver ||
+    oldDelegate.cashedOut != cashedOut;
 }
