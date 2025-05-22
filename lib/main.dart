@@ -1425,7 +1425,7 @@ class _GameScreenState extends State<GameScreen> {
                   });
                 },
               ),
-            if (gameOver && !_showMiniGame && !_showPongMiniGame && !_showBallBlastMiniGame && !_portfolioSwitchValue && !_propertyScreenSwitchValue)
+            if (gameOver && !_showMiniGame && !_showPongMiniGame && !_showBallBlastMiniGame && !_portfolioSwitchValue && !_propertyScreenSwitchValue && !_garageScreenSwitchValue)
               Positioned.fill(
                 child: EndScreenOverlay(
                   score: score,
@@ -1495,7 +1495,7 @@ class _GameScreenState extends State<GameScreen> {
                   // --- Add garage switch wiring ---
                   onGarageSwitchChanged: (val) {
                     setState(() {
-                      _garageScreenSwitchValue = val;
+                      _garageScreenSwitchValue = val;  // Simply set the value directly
                     });
                   },
                 ),
@@ -2041,24 +2041,13 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
           left: 15,  // Position on left side
           top: 90,   // Position near top, below score display
           child: GestureDetector(
-            onTap: () => widget.onGarageSwitchChanged(!widget.garageScreenSwitchValue),
+            onTap: () => widget.onGarageSwitchChanged(true), // Keep direct navigation
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: widget.garageScreenSwitchValue ? Colors.green : Colors.transparent,
-                  width: 4,
-                ),
-                boxShadow: [
-                  if (widget.garageScreenSwitchValue)
-                    BoxShadow(
-                      color: Colors.green.withOpacity(0.5),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                    ),
-                ],
+                // Removed black background and shadows
               ),
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(10),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -2165,9 +2154,7 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
           bottom: 40,
           right: 15, // Right alignment instead of center
           child: GestureDetector(
-                      
-                      
-                       onTap: () => widget.onPortfolioSwitchChanged(!widget.portfolioSwitchValue),
+            onTap: () => widget.onPortfolioSwitchChanged(!widget.portfolioSwitchValue),
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -2184,7 +2171,7 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
                     ),
                 ],
               ),
-                                                                                                                                                                         padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(6),
               child: Icon(
                 Icons.account_balance_wallet,
                 color: Colors.white,
@@ -2199,24 +2186,13 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
           top: 90,  // Same vertical position as the garage button on the left
           right: 15, // Right align similar to the red pill button
           child: GestureDetector(
-            onTap: () => widget.onPropertySwitchChanged(!widget.propertySwitchValue),
+            onTap: () => widget.onPropertySwitchChanged(true),
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: widget.propertySwitchValue ? Colors.green : Colors.transparent,
-                  width: 4,
-                ),
-                boxShadow: [
-                  if (widget.propertySwitchValue)
-                    BoxShadow(
-                      color: Colors.green.withOpacity(0.5),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                    ),
-                ],
+                // Removed black background and shadows
               ),
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(10),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
