@@ -1785,39 +1785,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                           ),
                         ),
                       ),
-                      
-                      // Volatility warning about Solana
-                      SizedBox(height: 20),
-                      Card(
-                        color: Colors.red[900]?.withOpacity(0.7),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.warning, color: Colors.yellow),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'High Volatility Warning',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Solana is known for extreme price volatility and can experience large price swings in short periods. Trade with caution.',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -1937,6 +1904,39 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                                   _buildStatItem('All-Time High', '\$10.00'),
                                   _buildStatItem('All-Time Low', '\$1.00'),
                                 ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      // Sketchy dev warning about BrowneCoin
+                      SizedBox(height: 20),
+                      Card(
+                        color: Colors.red[900]?.withOpacity(0.7),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.warning, color: Colors.yellow),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Warning: Sketchy Dev and High Volatility',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'BrowneCoin is developed by a questionable team! Expect extreme price volatility and potential rug pulls. Trade at your own risk.',
+                                style: TextStyle(color: Colors.white),
                               ),
                             ],
                           ),

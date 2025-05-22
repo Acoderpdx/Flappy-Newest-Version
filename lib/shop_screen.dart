@@ -44,11 +44,23 @@ class _ShopScreenState extends State<ShopScreen> {
   @override
   Widget build(BuildContext context) {
     final skins = [
+      // Add default bird skin at the beginning of the list
+      {
+        'filename': 'bird.png',
+        'name': 'Default Bird',
+        'collectible': 'LionsMane', // Using Lions Mane as it's most common
+        'cost': 1, // Just 1 Lions Mane to reselect
+        'count': widget.lionsManeCollected,
+        'asset': 'assets/images/bird.png',
+        'color': Colors.blue, // Blue theme for default bird
+        'icon': 'assets/images/lions_mane.png',
+      },
+      // Existing skins
       {
         'filename': 'tate_bird.png',
         'name': 'Tate Bird',
         'collectible': 'RedPill',
-        'cost': 200, // Changed from 10 to 200 red pills
+        'cost': 200,
         'count': widget.redPillCollected,
         'asset': 'assets/images/tate_bird.png',
         'color': Colors.red,
@@ -58,7 +70,7 @@ class _ShopScreenState extends State<ShopScreen> {
         'filename': 'lion_bird.png',
         'name': 'Lion Bird',
         'collectible': 'LionsMane',
-        'cost': 500, // Changed from 10 to 500 lions mane
+        'cost': 500,
         'count': widget.lionsManeCollected,
         'asset': 'assets/images/lion_bird.png',
         'color': Colors.amber,
@@ -68,7 +80,7 @@ class _ShopScreenState extends State<ShopScreen> {
         'filename': 'bankman_bird.png',
         'name': 'Bankman Bird',
         'collectible': 'Bitcoin',
-        'cost': 10, // Keeping this the same
+        'cost': 10,
         'count': widget.bitcoinCollected,
         'asset': 'assets/images/bankman_bird.png',
         'color': Colors.amber.shade700,

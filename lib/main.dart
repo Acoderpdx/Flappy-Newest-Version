@@ -465,34 +465,110 @@ class _GameScreenState extends State<GameScreen> {
       double gapCenterY = (gapTop + gapBottom) / 2;
       double yAlign = (gapCenterY - MediaQuery.of(context).size.height / 2) / (MediaQuery.of(context).size.height / 2);
 
-      // Fix collectible pattern: 5 Lions Mane followed by 1 Solana
-      if (collectibleCycleCounter % 6 != 5) {
-        // First 5 positions (0,1,2,3,4): spawn Lions Mane
-        lionsManes.add(LionsMane(
-          xPosition: xPos + 70 / 2 - 20,
+      // Use the helper functions for correct spawning pattern
+      if (redWhiteBlackFilter) {
+        // Red mode: only spawn red pills
+        redPills.add(RedPill(
+          xPosition: xPos + 70 / 2 - 17,
           yAlign: yAlign,
         ));
+        
+        // Add hidden placeholders for other collectibles
+        lionsManes.add(LionsMane(xPosition: -1000, yAlign: 0, collected: true));
         solanas.add(Solana(xPosition: -1000, yAlign: 0, collected: true));
         browneCoins.add(BrowneCoin(xPosition: -1000, yAlign: 0, collected: true));
       } else {
-        // Position 5 (every 6th): spawn Solana
-        lionsManes.add(LionsMane(
-          xPosition: xPos + 70 / 2 - 20, 
-          yAlign: yAlign,
-          collected: true,
-        ));
-        solanas.add(Solana(
-          xPosition: xPos + 70 / 2 - 20,
-          yAlign: yAlign,
-        ));
+        // Normal mode: follow the proper pattern based on the cycle counter
+        if (shouldSpawnLionsMane(collectibleCycleCounter)) {
+          // Lions Mane at positions 0, 2, 4
+          if (i < lionsManes.length) {
+            lionsManes[i] = LionsMane(
+              xPosition: xPos + 70 / 2 - 20, // Use xPos instead of glueStick
+              yAlign: yAlign,
+              collected: false,
+            );
+          } else {
+            lionsManes.add(LionsMane(
+              xPosition: xPos + 70 / 2 - 20, // Use xPos instead of glueStick
+              yAlign: yAlign,
+              collected: false,
+            ));
+          }
+          // Hide other collectibles
+          if (i < solanas.length) {
+            solanas[i] = Solana(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            solanas.add(Solana(xPosition: -1000, yAlign: 0, collected: true));
+          }
+          if (i < browneCoins.length) {
+            browneCoins[i] = BrowneCoin(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            browneCoins.add(BrowneCoin(xPosition: -1000, yAlign: 0, collected: true));
+          }
+        } else if (shouldSpawnBrowneCoin(collectibleCycleCounter)) {
+          // BrowneCoin at positions 1, 3
+          if (i < browneCoins.length) {
+            browneCoins[i] = BrowneCoin(
+              xPosition: glueSticks[i].xPosition + glueSticks[i].width / 2 - 20,
+              yAlign: yAlign,
+              collected: false,
+            );
+          } else {
+            browneCoins.add(BrowneCoin(
+              xPosition: glueSticks[i].xPosition + glueSticks[i].width / 2 - 20,
+              yAlign: yAlign,
+              collected: false,
+            ));
+          }
+          // Hide other collectibles
+          if (i < lionsManes.length) {
+            lionsManes[i] = LionsMane(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            lionsManes.add(LionsMane(xPosition: -1000, yAlign: 0, collected: true));
+          }
+          if (i < solanas.length) {
+            solanas[i] = Solana(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            solanas.add(Solana(xPosition: -1000, yAlign: 0, collected: true));
+          }
+        } else if (shouldSpawnSolana(collectibleCycleCounter)) {
+          // Solana at position 5
+          if (i < solanas.length) {
+            solanas[i] = Solana(
+              xPosition: glueSticks[i].xPosition + glueSticks[i].width / 2 - 20,
+              yAlign: yAlign,
+              collected: false,
+            );
+          } else {
+            solanas.add(Solana(
+              xPosition: glueSticks[i].xPosition + glueSticks[i].width / 2 - 20,
+              yAlign: yAlign,
+              collected: false,
+            ));
+          }
+          // Hide other collectibles
+          if (i < lionsManes.length) {
+            lionsManes[i] = LionsMane(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            lionsManes.add(LionsMane(xPosition: -1000, yAlign: 0, collected: true));
+          }
+          if (i < browneCoins.length) {
+            browneCoins[i] = BrowneCoin(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            browneCoins.add(BrowneCoin(xPosition: -1000, yAlign: 0, collected: true));
+          }
+        }
+        
+        // Hide red pills in normal mode
+        if (i < redPills.length) {
+          redPills[i] = RedPill(xPosition: -1000, yAlign: 0, collected: true);
+        } else {
+          redPills.add(RedPill(xPosition: -1000, yAlign: 0, collected: true));
+        }
+        
+        // CRITICAL: Increment the collectible cycle counter
+        collectibleCycleCounter = (collectibleCycleCounter + 1) % 6;
       }
-      
-      redPills.add(RedPill(
-        xPosition: xPos + 70 / 2 - 17,
-        yAlign: yAlign,
-      ));
-
-      collectibleCycleCounter = (collectibleCycleCounter + 1) % 6;
     }
 
     // --- RED MODE: Make gameplay 30% slower by increasing timer interval ---
@@ -724,95 +800,105 @@ class _GameScreenState extends State<GameScreen> {
         double gapCenterY = (gapTop + gapBottom) / 2;
         double yAlign = (gapCenterY - MediaQuery.of(context).size.height / 2) / (MediaQuery.of(context).size.height / 2);
 
-        // Replace the existing collectible pattern with this new one
-        if (shouldSpawnLionsMane(collectibleCycleCounter)) {
-          if (i < lionsManes.length) {
-            lionsManes[i] = LionsMane(
-              xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
-              yAlign: yAlign,
-              collected: false,
-            );
-          } else {
-            lionsManes.add(LionsMane(
-              xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
-              yAlign: yAlign,
-              collected: false,
-            ));
+        if (redWhiteBlackFilter) {
+          // Red pill mode code...
+        } else {
+          // IMPORTANT: Add print statement to debug the counter
+          print("Spawn collectible with counter: $collectibleCycleCounter");
+          
+          // Normal mode collectible spawning
+          if (shouldSpawnLionsMane(collectibleCycleCounter)) {
+            // Lions Mane spawning code...
+            if (i < lionsManes.length) {
+              lionsManes[i] = LionsMane(
+                xPosition: glueSticks[i].xPosition + glueSticks[i].width / 2 - 20,
+                yAlign: yAlign,
+                collected: false,
+              );
+            } else {
+              lionsManes.add(LionsMane(
+                xPosition: glueSticks[i].xPosition + glueSticks[i].width / 2 - 20,
+                yAlign: yAlign,
+                collected: false,
+              ));
+            }
+            // Hide other collectibles
+            if (i < solanas.length) {
+              solanas[i] = Solana(xPosition: -1000, yAlign: 0, collected: true);
+            } else {
+              solanas.add(Solana(xPosition: -1000, yAlign: 0, collected: true));
+            }
+            if (i < browneCoins.length) {
+              browneCoins[i] = BrowneCoin(xPosition: -1000, yAlign: 0, collected: true);
+            } else {
+              browneCoins.add(BrowneCoin(xPosition: -1000, yAlign: 0, collected: true));
+            }
+          } else if (shouldSpawnBrowneCoin(collectibleCycleCounter)) {
+            // BrowneCoin spawning code...
+            if (i < browneCoins.length) {
+              browneCoins[i] = BrowneCoin(
+                xPosition: glueSticks[i].xPosition + glueSticks[i].width / 2 - 20,
+                yAlign: yAlign,
+                collected: false,
+              );
+            } else {
+              browneCoins.add(BrowneCoin(
+                xPosition: glueSticks[i].xPosition + glueSticks[i].width / 2 - 20,
+                yAlign: yAlign,
+                collected: false,
+              ));
+            }
+            // Hide other collectibles
+            if (i < lionsManes.length) {
+              lionsManes[i] = LionsMane(xPosition: -1000, yAlign: 0, collected: true);
+            } else {
+              lionsManes.add(LionsMane(xPosition: -1000, yAlign: 0, collected: true));
+            }
+            if (i < solanas.length) {
+              solanas[i] = Solana(xPosition: -1000, yAlign: 0, collected: true);
+            } else {
+              solanas.add(Solana(xPosition: -1000, yAlign: 0, collected: true));
+            }
+          } else if (shouldSpawnSolana(collectibleCycleCounter)) {
+            // Solana spawning code...
+            if (i < solanas.length) {
+              solanas[i] = Solana(
+                xPosition: glueSticks[i].xPosition + glueSticks[i].width / 2 - 20,
+                yAlign: yAlign,
+                collected: false,
+              );
+            } else {
+              solanas.add(Solana(
+                xPosition: glueSticks[i].xPosition + glueSticks[i].width / 2 - 20,
+                yAlign: yAlign,
+                collected: false,
+              ));
+            }
+            // Hide other collectibles
+            if (i < lionsManes.length) {
+              lionsManes[i] = LionsMane(xPosition: -1000, yAlign: 0, collected: true);
+            } else {
+              lionsManes.add(LionsMane(xPosition: -1000, yAlign: 0, collected: true));
+            }
+            if (i < browneCoins.length) {
+              browneCoins[i] = BrowneCoin(xPosition: -1000, yAlign: 0, collected: true);
+            } else {
+              browneCoins.add(BrowneCoin(xPosition: -1000, yAlign: 0, collected: true));
+            }
           }
           
-          // Hide other collectibles
-          if (i < solanas.length) {
-            solanas[i] = Solana(xPosition: -1000, yAlign: 0, collected: true);
-          } else {
-            solanas.add(Solana(xPosition: -1000, yAlign: 0, collected: true));
-          }
+          // CRITICAL FIX: This is the most important part - make sure this line exists
+          // and is properly placed INSIDE the else block but AFTER all the collectible checks
+          collectibleCycleCounter = (collectibleCycleCounter + 1) % 6;
           
-          if (i < browneCoins.length) {
-            browneCoins[i] = BrowneCoin(xPosition: -1000, yAlign: 0, collected: true);
-          } else {
-            browneCoins.add(BrowneCoin(xPosition: -1000, yAlign: 0, collected: true));
-          }
-        } else if (shouldSpawnBrowneCoin(collectibleCycleCounter)) {
-          if (i < browneCoins.length) {
-            browneCoins[i] = BrowneCoin(
-              xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
-              yAlign: yAlign,
-              collected: false,
-            );
-          } else {
-            browneCoins.add(BrowneCoin(
-              xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
-              yAlign: yAlign,
-              collected: false,
-            ));
-          }
-          
-          // Hide other collectibles
-          if (i < lionsManes.length) {
-            lionsManes[i] = LionsMane(xPosition: -1000, yAlign: 0, collected: true);
-          } else {
-            lionsManes.add(LionsMane(xPosition: -1000, yAlign: 0, collected: true));
-          }
-          
-          if (i < solanas.length) {
-            solanas[i] = Solana(xPosition: -1000, yAlign: 0, collected: true);
-          } else {
-            solanas.add(Solana(xPosition: -1000, yAlign: 0, collected: true));
-          }
-        } else if (shouldSpawnSolana(collectibleCycleCounter)) {
-          if (i < solanas.length) {
-            solanas[i] = Solana(
-              xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
-              yAlign: yAlign,
-              collected: false,
-            );
-          } else {
-            solanas.add(Solana(
-              xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
-              yAlign: yAlign,
-              collected: false,
-            ));
-          }
-          
-          // Hide other collectibles
-          if (i < lionsManes.length) {
-            lionsManes[i] = LionsMane(xPosition: -1000, yAlign: 0, collected: true);
-          } else {
-            lionsManes.add(LionsMane(xPosition: -1000, yAlign: 0, collected: true));
-          }
-          
-          if (i < browneCoins.length) {
-            browneCoins[i] = BrowneCoin(xPosition: -1000, yAlign: 0, collected: true);
-          } else {
-            browneCoins.add(BrowneCoin(xPosition: -1000, yAlign: 0, collected: true));
-          }
+          // DEBUGGING: Add another print to verify the counter was incremented
+          print("Counter after increment: $collectibleCycleCounter");
         }
-
-        collectibleCycleCounter = (collectibleCycleCounter + 1) % 6;
       }
     }
   }
 
+  // --- Add missing methods here ---
   void resetGame() {
     setState(() {
       birdY = 0;
@@ -1759,7 +1845,8 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
-  // Add these methods to your _GameScreenState class
+  // Add these methods to your _GameScreenState class if they're not already there:
+
 bool shouldSpawnLionsMane(int position) => position % 6 == 0 || position % 6 == 2 || position % 6 == 4;
 bool shouldSpawnBrowneCoin(int position) => position % 6 == 1 || position % 6 == 3;
 bool shouldSpawnSolana(int position) => position % 6 == 5;
@@ -2001,6 +2088,7 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
+                // Removed the dark background color
                 border: Border.all(
                   color: widget.miniGameSwitchValue ? Colors.green : Colors.transparent,
                   width: 4,
@@ -2015,19 +2103,17 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
                 ],
               ),
               padding: const EdgeInsets.all(6),
-              child: Image.asset(
-                'assets/images/gamble.png',
-                width: 38,
-                height: 38,
-                errorBuilder: (context, error, stackTrace) =>
-                    Icon(Icons.casino, color: Colors.blue, size: 38),
+              child: Icon(
+                Icons.casino, // Universal gambling symbol (dice)
+                color: Colors.white, // Changed from amber to white
+                size: 38,
               ),
             ),
           ),
         ),
         // --- Game Over Text (move up slightly) ---
         Positioned(
-          top: MediaQuery.of(context).size.height * 0.19, // was 0.25, now higher
+          top: MediaQuery.of(context).size.height * 0.19, // was  0.25, now higher
           left: 0,
           right: 0,
           child: Center(
@@ -2079,7 +2165,9 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
           bottom: 40,
           right: 15, // Right alignment instead of center
           child: GestureDetector(
-            onTap: () => widget.onPortfolioSwitchChanged(!widget.portfolioSwitchValue),
+                      
+                      
+                       onTap: () => widget.onPortfolioSwitchChanged(!widget.portfolioSwitchValue),
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -2096,7 +2184,7 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
                     ),
                 ],
               ),
-              padding: const EdgeInsets.all(6),
+                                                                                                                                                                         padding: const EdgeInsets.all(6),
               child: Icon(
                 Icons.account_balance_wallet,
                 color: Colors.white,

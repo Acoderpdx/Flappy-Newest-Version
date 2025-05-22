@@ -22,7 +22,50 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/
+    - assets/images/background.png
+    - assets/images/bankman_bird.png
+    - assets/images/bird.png
+    - assets/images/bitcoin.png
+    - assets/images/end_screen.png
+    - assets/images/glue_stick_bottom.png
+    - assets/images/glue_stick_top.png
+    - assets/images/lion_bird.png
+    - assets/images/lions_mane.png
+    - assets/images/matrix_shop.png
+    - assets/images/red_pill.png
+    - assets/images/tate_bird.png
+    - assets/images/title_screen.png
+    - assets/images/portal.png
+    - assets/images/isreal.png
+    - assets/images/gamble.png
+    - assets/images/tate_endscreen.png
+    - assets/images/house1.png
+    - assets/images/house2.png
+    - assets/images/house3.png
+    - assets/images/house4.png
+    - assets/images/house5.png
+    - assets/images/house_background.png
+    - assets/images/eth.png
+    - assets/images/solana.png
+    - assets/images/moderncastle1.png
+    - assets/images/moderncastle2.png
+    - assets/images/moderncastle3.png
+    - assets/images/moderncastle4.png
+    - assets/images/moderncastle5.png
+    - assets/images/ythouse1.png
+    - assets/images/ythouse2.png
+    - assets/images/ythouse3.png
+    - assets/images/ythouse4.png
+    - assets/images/ythouse5.png
+    - assets/images/cars/Bugattus Cobra-X.png
+    - assets/images/cars/BVM Phantom 4.png
+    - assets/images/cars/Cerberus Firecat.png
+    - assets/images/cars/Hondo Racer-X.png
+    - assets/images/cars/Kyo Cubelet.png
+    - assets/images/cars/Mind Virus.png
+    - assets/images/cars/Mustardo Wildrun.png
+    - assets/images/cars/Plumber Beast-R.png
+    - assets/images/brownecoin.png
   fonts:
     - family: Flappybirdy
       fonts:
