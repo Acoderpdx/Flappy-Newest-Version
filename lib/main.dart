@@ -1850,7 +1850,50 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
             ),
           ),
         ),
-        // --- Crash Mini-game Button (gamble.png image, bottom left) ---
+        // --- Garage Button (move to upper left) ---
+        Positioned(
+          left: 15,  // Position on left side
+          top: 90,   // Position near top, below score display
+          child: GestureDetector(
+            onTap: () => widget.onGarageSwitchChanged(!widget.garageScreenSwitchValue),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: widget.garageScreenSwitchValue ? Colors.green : Colors.transparent,
+                  width: 4,
+                ),
+                boxShadow: [
+                  if (widget.garageScreenSwitchValue)
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.5),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                ],
+              ),
+              padding: const EdgeInsets.all(6),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Black outline
+                  Icon(
+                    Icons.directions_car,
+                    color: Colors.black,
+                    size: 42,
+                  ),
+                  // White car icon
+                  Icon(
+                    Icons.directions_car,
+                    color: Colors.white,
+                    size: 38,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // --- Crash Mini-game Button (position at bottom left) ---
         Positioned(
           left: 15,
           bottom: 40,
@@ -1879,39 +1922,6 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
                 height: 38,
                 errorBuilder: (context, error, stackTrace) =>
                     Icon(Icons.casino, color: Colors.blue, size: 38),
-              ),
-            ),
-          ),
-        ),
-        // --- Ball Blast Mini-game Button (isreal.png image, bottom right) ---
-        Positioned(
-          right: 15,
-          bottom: 40,
-          child: GestureDetector(
-            onTap: () => widget.onBallBlastMiniGameSwitchChanged(!widget.ballBlastMiniGameSwitchValue),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: widget.ballBlastMiniGameSwitchValue ? Colors.green : Colors.transparent,
-                  width: 4,
-                ),
-                boxShadow: [
-                  if (widget.ballBlastMiniGameSwitchValue)
-                    BoxShadow(
-                      color: Colors.green.withOpacity(0.5),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                    ),
-                ],
-              ),
-              padding: const EdgeInsets.all(6),
-              child: Image.asset(
-                'assets/images/isreal.png',
-                width: 38,
-                height: 38,
-                errorBuilder: (context, error, stackTrace) =>
-                    Icon(Icons.sports_baseball, color: Colors.deepPurple, size: 38),
               ),
             ),
           ),
@@ -1965,117 +1975,77 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
             ),
           ),
         ),
-        // --- Portfolio Switch (center bottom, wallet icon) ---
+        // --- Portfolio Switch (bottom right, wallet icon) ---
         Positioned(
           bottom: 40,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: GestureDetector(
-              onTap: () => widget.onPortfolioSwitchChanged(!widget.portfolioSwitchValue),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: widget.portfolioSwitchValue ? Colors.green : Colors.transparent,
-                    width: 4,
-                  ),
-                  boxShadow: [
-                    if (widget.portfolioSwitchValue)
-                      BoxShadow(
-                        color: Colors.green.withOpacity(0.5),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                      ),
-                  ],
+          right: 15, // Right alignment instead of center
+          child: GestureDetector(
+            onTap: () => widget.onPortfolioSwitchChanged(!widget.portfolioSwitchValue),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: widget.portfolioSwitchValue ? Colors.green : Colors.transparent,
+                  width: 4,
                 ),
-                padding: const EdgeInsets.all(6),
-                child: Icon(
-                  Icons.account_balance_wallet,
-                  color: Colors.white,
-                  size: 38,
-                ),
+                boxShadow: [
+                  if (widget.portfolioSwitchValue)
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.5),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                ],
+              ),
+              padding: const EdgeInsets.all(6),
+              child: Icon(
+                Icons.account_balance_wallet,
+                color: Colors.white,
+                size: 38,
               ),
             ),
           ),
         ),
         
-        // --- Property Switch (MOVED: above portfolio, center bottom) ---
+        // --- Property Button (move to top right) ---
         Positioned(
-          bottom: 100, // Moved up above portfolio button
-          left: 0,
-          right: 0,
-          child: Center(  // Center horizontally
-            child: GestureDetector(
-              onTap: () => widget.onPropertySwitchChanged(!widget.propertySwitchValue),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: widget.propertySwitchValue ? Colors.green : Colors.transparent,
-                    width: 4,
-                  ),
-                  boxShadow: [
-                    if (widget.propertySwitchValue)
-                      BoxShadow(
-                        color: Colors.green.withOpacity(0.5),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                      ),
-                  ],
+          top: 90,  // Same vertical position as the garage button on the left
+          right: 15, // Right align similar to the red pill button
+          child: GestureDetector(
+            onTap: () => widget.onPropertySwitchChanged(!widget.propertySwitchValue),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: widget.propertySwitchValue ? Colors.green : Colors.transparent,
+                  width: 4,
                 ),
-                padding: const EdgeInsets.all(6),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Black outline
-                    Icon(
-                      Icons.home,
-                      color: Colors.black,
-                      size: 42,
+                boxShadow: [
+                  if (widget.propertySwitchValue)
+                    BoxShadow(
+                      color: Colors.green.withOpacity(0.5),
+                      blurRadius: 12,
+                      spreadRadius: 2,
                     ),
-                    // White house icon
-                    Icon(
-                      Icons.home,
-                      color: Colors.white,
-                      size: 38,
-                    ),
-                  ],
-                ),
+                ],
               ),
-            ),
-          ),
-        ),
-        // --- Garage Switch (new: above property, center bottom) ---
-        Positioned(
-          bottom: 140, // Above the property switch
-          left: 0,
-          right: 0,
-          child: Center(
-            child: GestureDetector(
-              onTap: () => widget.onGarageSwitchChanged(!widget.garageScreenSwitchValue),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: widget.garageScreenSwitchValue ? Colors.green : Colors.transparent,
-                    width: 4,
+              padding: const EdgeInsets.all(6),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Black outline
+                  Icon(
+                    Icons.home,
+                    color: Colors.black,
+                    size: 42,
                   ),
-                  boxShadow: [
-                    if (widget.garageScreenSwitchValue)
-                      BoxShadow(
-                        color: Colors.green.withOpacity(0.5),
-                        blurRadius: 12,
-                        spreadRadius: 2,
-                      ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(6),
-                child: Icon(
-                  Icons.directions_car,
-                  color: Colors.white,
-                  size: 38,
-                ),
+                  // White house icon
+                  Icon(
+                    Icons.home,
+                    color: Colors.white,
+                    size: 38,
+                  ),
+                ],
               ),
             ),
           ),
@@ -2217,7 +2187,7 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(seconds: 3),
+           duration: const Duration(seconds: 3),
       vsync: this,
     )..repeat(reverse: false);
     _animation = Tween<double>(begin: -1.2, end: 1.2).animate(
