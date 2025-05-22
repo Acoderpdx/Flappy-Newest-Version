@@ -1007,17 +1007,11 @@ class _GameScreenState extends State<GameScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Lions Mane
+                  // Lions Mane counter
                   Image.asset(
                     'assets/images/lions_mane.png',
                     width: 28,
                     height: 28,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.red,
-                        child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                      );
-                    },
                   ),
                   SizedBox(width: 4),
                   Text(
@@ -1035,25 +1029,21 @@ class _GameScreenState extends State<GameScreen> {
                       ],
                     ),
                   ),
+                  
                   SizedBox(width: 18),
-                  // Red Pill
+                  
+                  // Red Pill counter
                   Image.asset(
                     'assets/images/red_pill.png',
                     width: 28,
                     height: 28,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.red,
-                        child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
-                      );
-                    },
                   ),
                   SizedBox(width: 4),
                   Text(
                     '$redPillCollected',
                     style: TextStyle(
                       fontSize: 32,
-                      color: Colors.redAccent,
+                      color: Colors.red,
                       fontWeight: FontWeight.bold,
                       shadows: [
                         Shadow(
@@ -1064,10 +1054,12 @@ class _GameScreenState extends State<GameScreen> {
                       ],
                     ),
                   ),
+                  
                   SizedBox(width: 18),
-                  // Replace Bitcoin with Solana counter
+                  
+                  // Solana counter
                   Image.asset(
-                    'assets/images/solana.png', // Changed from bitcoin.png to solana.png
+                    'assets/images/solana.png',
                     width: 28, 
                     height: 28,
                     errorBuilder: (context, error, stackTrace) {
@@ -1079,10 +1071,42 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                   SizedBox(width: 4),
                   Text(
-                    '$solanaCollected', // Changed from bitcoinCollected to solanaCollected
+                    '$solanaCollected',
                     style: TextStyle(
                       fontSize: 32,
-                      color: Colors.purple, // Changed from amber to purple to match Solana's color
+                      color: Colors.purple,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(2, 2),
+                          blurRadius: 8,
+                          color: Colors.black54,
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // ADD THIS: BrowneCoin counter
+                  SizedBox(width: 18),
+                  Image.asset(
+                    'assets/images/brownecoin.png',
+                    width: 28,
+                    height: 28,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.brown.withOpacity(0.7),
+                        width: 28,
+                        height: 28,
+                        child: Center(child: Text('B', style: TextStyle(color: Colors.white))),
+                      );
+                    },
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    '$browneCoinCollected',
+                    style: TextStyle(
+                      fontSize: 32,
+                      color: Colors.orange,
                       fontWeight: FontWeight.bold,
                       shadows: [
                         Shadow(
