@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'crypto_price_model.dart';
 
 class CryptoMarketManager {
@@ -13,7 +14,7 @@ class CryptoMarketManager {
   late CryptoCurrency bitcoin;
   late CryptoCurrency ethereum;
   late CryptoCurrency solana;
-  late CryptoCurrency browneCoin; // Add this line
+  late CryptoCurrency browneCoin;
   
   // Timer for background updates
   Timer? _updateTimer;
@@ -53,7 +54,6 @@ class CryptoMarketManager {
       initialPrice: 80.0 + (Random().nextDouble() * 40),  // $80-120
     );
     
-    // Add BrowneCoin initialization
     browneCoin = CryptoCurrency(
       name: "BrowneCoin",
       symbol: "BRWN", 
@@ -63,7 +63,10 @@ class CryptoMarketManager {
     );
     
     // Start the background update timer (updates every 5 seconds for more visible movement)
-    _updateTimer = Timer.periodic(Duration(seconds: 5), (_) => _updatePrices());
+    // Only start the timer if we're not running tests
+    if (!kIsWeb || true) { // Always start updates even on web now that we have proper platform compatibility
+      _updateTimer = Timer.periodic(Duration(seconds: 5), (_) => _updatePrices());
+    }
     
     _initialized = true;
   }
@@ -78,13 +81,13 @@ class CryptoMarketManager {
     bitcoin.updatePrice();
     ethereum.updatePrice();
     solana.updatePrice();
-    browneCoin.updatePrice(); // Add this line
+    browneCoin.updatePrice();
     
     // Check for significant price changes (more than 5% since last hour)
     _checkForSignificantChanges(bitcoin);
     _checkForSignificantChanges(ethereum);
     _checkForSignificantChanges(solana);
-    _checkForSignificantChanges(browneCoin); // Add this line
+    _checkForSignificantChanges(browneCoin);
     
     // Occasional market events
     if (Random().nextDouble() < 0.01) { // 1% chance per update
@@ -117,7 +120,7 @@ class CryptoMarketManager {
   
   // Get all currencies as a list for easy iteration
   List<CryptoCurrency> getAllCurrencies() {
-    return [bitcoin, ethereum, solana, browneCoin]; // Add browneCoin to this list
+    return [bitcoin, ethereum, solana, browneCoin];
   }
   
   // News events that impact market

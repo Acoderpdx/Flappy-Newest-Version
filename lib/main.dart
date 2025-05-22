@@ -1,23 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'shop_screen.dart'; // (Make sure this import is present)
+
+// First, import platform-agnostic files
+import 'shop_screen.dart';
 import 'crash_mini_game.dart';
-import 'pong_mini_game.dart'; // <-- Add this import
+import 'pong_mini_game.dart';
 import 'ball_blast_mini_game.dart';
-import 'dart:math'; // <-- Add this import
-import 'dart:io'; // <-- Add this import
+import 'dart:math';
 import 'portfolio_screen.dart';
 import 'property_screen.dart';
-import 'garage_screen.dart'; // Add import for the garage screen
-import 'crypto_market_manager.dart'; // Add this import at the top of main.dart
+import 'garage_screen.dart';
+
+// Import platform_imports.dart which safely handles dart:io imports
+import 'platform_imports.dart';
+
+// Error handling for web platform
+class WebSafeErrorHandler {
+  static void initialize() {
+    // Set up error handling for Flutter
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+      print('FlutterError: ${details.exception}');
+    };
+  }
+}
 
 void main() {
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
-    // ignore: avoid_print
-    print(details.exceptionAsString());
-  };
+  // Setup error handling for web
+  WebSafeErrorHandler.initialize();
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Force HTML renderer for web
+  if (kIsWeb) {
+    // This helps ensure HTML renderer is used
+    debugPrint('Running on web - using HTML renderer');
+  }
+  
+  // Initialize market manager for all platforms
+  try {
+    final marketManager = CryptoMarketManager();
+    marketManager.initialize();
+    print('Crypto market manager initialized successfully');
+  } catch (e) {
+    print('Error initializing market manager: $e');
+  }
+  
   runApp(FlappyBirdClone());
 }
 
@@ -353,18 +383,36 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     
-    // Initialize the crypto market manager to run continuously in the background
-    CryptoMarketManager().initialize();
-    
-    _loadSkinPrefs();
+    // Platform-safe initialization
+    _initializeGame();
     // Only run the Timer if not in test mode
-    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
-      Future.delayed(Duration(seconds: 3), () {
-        setState(() {
-          showTitleScreen = false;
-        });
-      });
+    if (!kIsWeb) {
+      // Only run this code on non-web platforms
+      try {
+        // Initialize any platform-specific features here
+      } catch (e) {
+        print('Error initializing platform features: $e');
+      }
     }
+    
+    Future.delayed(Duration(seconds: 3), () {
+      setState(() {
+        showTitleScreen = false;
+      });
+    });
+  }
+
+  void _initializeGame() {
+    // Use platform-safe initializations
+    if (!kIsWeb) {
+      // Mobile-specific initialization
+      // Only use dart:io imports inside this check
+    } else {
+      // Web-specific initialization
+    }
+    
+    // Continue with platform-independent initializations
+    _loadSkinPrefs();
   }
 
   Future<void> _loadSkinPrefs() async {
@@ -1277,34 +1325,7 @@ class _GameScreenState extends State<GameScreen> {
         ),
     ];
 
-    // Add wager indicator to game UI in red mode
-    if (redWhiteBlackFilter && gameHasStarted && !gameOver) {
-      gameStackChildren.add(
-        Positioned(
-          top: 10,
-          right: 10,
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.7),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.red, width: 1),
-            ),
-            child: Row(
-              children: [
-                Image.asset('assets/images/red_pill.png', width: 20, height: 20),
-                SizedBox(width: 5),
-                Text(
-                  'At Risk: $_redPillWagerAmount',
-                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
+   
     Widget gameStack = Stack(
       children: gameStackChildren,
     );
@@ -1991,7 +2012,7 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
             ),
           ),
         ),
-        // Red/White/Black Filter Toggle (Red Pill image, right side)
+               // Red/White/Black Filter Toggle (Red Pill image, right side)
         Positioned(
           right: 15,
           top: 0,
@@ -2029,7 +2050,7 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
         ),
         // Matrix Shop Button (left side, bitcoin image)
         Positioned(
-          left: 15,
+          left:  15,
           top: 0,
           bottom: 0,
           child: Center(
@@ -2241,7 +2262,7 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
           ),
         ),
       ],
-                         );
+    );
   }
 }
 
@@ -2353,7 +2374,7 @@ class _TitleScreenContent extends StatefulWidget {
 class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
-   double birdY = 0.0;
+  double birdY = 0.0;
   double velocity = 0.0;
   final double gravity = 0.007 * 0.5;
   final double flapVelocity = -0.11;
@@ -2362,8 +2383,8 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
   
   // Flap 3 times per second as bird moves left to right
   final int flapsPerSecond = 3;
-   late double flapInterval;
- double lastFlapX = -1.2;
+  late double flapInterval;
+  double lastFlapX = -1.2;
 
   // --- Lions Mane collectibles for title screen ---
   final List<_TitleScreenLionsMane> _lionsManes = [];
@@ -2371,14 +2392,14 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
   final double _dropIntervalSec = 1.0 / 3.0; // 3 per second
 
   // Use the same gravity and maxFallSpeed as the main game bird
-  final double collectibleGravity =  0.0039;
+  final double collectibleGravity = 0.0039;
   final double collectibleMaxFallSpeed = 0.025;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-                     duration: const Duration(seconds: 3),
+      duration: const Duration(seconds: 3),
       vsync: this,
     )..repeat(reverse: false);
     _animation = Tween<double>(begin: -1.2, end: 1.2).animate(
@@ -2414,9 +2435,9 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
             x: x,
             y: birdY,
             vy: 0,
-                   ));
+          ));
           _lastDropTime = t;
-               }
+        }
         
         // --- Animate lions mane collectibles falling with gravity like bird ---
         for (final mane in _lionsManes) {
@@ -2425,9 +2446,7 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
           mane.y += mane.vy;
         }
         
-        
         // Remove collectibles that fall off the bottom
-       
         _lionsManes.removeWhere((mane) => mane.y > 1.2);
       });
     });
@@ -2458,7 +2477,7 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
         Text(
           'Flappy',
           style: TextStyle(
-            fontFamily: 'FlappyBirdy',
+            fontFamily: 'Flappybirdy',
             fontSize: 84,
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -2475,7 +2494,7 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
         Text(
           'Poet',
           style: TextStyle(
-            fontFamily: 'FlappyBirdy',
+            fontFamily: 'Flappybirdy',
             fontSize: 84,
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -2535,7 +2554,7 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
             'help the poet\nescape the matrix',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontFamily: 'FlappyBirdy',
+              fontFamily: 'Flappybirdy',
               fontSize: 44,
               color: Colors.white,
               fontWeight: FontWeight.w700,

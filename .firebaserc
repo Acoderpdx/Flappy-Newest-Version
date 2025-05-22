@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "flappy-vibe-game"
+  },
+  "targets": {
+    "flappy-vibe-game": {
+      "hosting": {
+        "web": ["flappy-vibe-game"]
+      }
+    }
+  }
+}

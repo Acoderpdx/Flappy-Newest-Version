@@ -194,6 +194,29 @@ class _GarageScreenState extends State<GarageScreen> {
     });
   }
 
+  // Add a new method for building car images with better error handling
+  Widget _buildCarImage(String assetPath) {
+    print('Loading car image: $assetPath');
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        print("Error loading car image: $assetPath - $error");
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.directions_car, color: Colors.blue, size: 80),
+            SizedBox(height: 10),
+            Text(
+              "Car Preview",
+              style: TextStyle(color: Colors.blue),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -313,14 +336,7 @@ class _GarageScreenState extends State<GarageScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Center(
-                      child: Image.asset(
-                        _catalogCar.assetPath,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          print("Error loading car image: ${_catalogCar.assetPath}");
-                          return const Icon(Icons.directions_car, color: Colors.blue, size: 120);
-                        },
-                      ),
+                      child: _buildCarImage(_catalogCar.assetPath),
                     ),
                   ),
                   
@@ -459,14 +475,7 @@ class _GarageScreenState extends State<GarageScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
-                  child: Image.asset(
-                    _currentCar!.assetPath,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      print("Error loading car image: ${_currentCar!.assetPath}");
-                      return const Icon(Icons.directions_car, color: Colors.blue, size: 120);
-                    },
-                  ),
+                  child: _buildCarImage(_currentCar!.assetPath),
                 ),
               ),
               

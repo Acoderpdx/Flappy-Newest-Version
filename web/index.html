@@ -10,36 +10,162 @@
 
     For more details:
     * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
   -->
-  <base href="$FLUTTER_BASE_HREF">
+  <base href="/">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="A custom Flappy Bird game with cryptocurrency elements">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="flappy_bird_clone">
+  <meta name="apple-mobile-web-app-title" content="Flappy Crypto">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>flappy_bird_clone</title>
+  <title>Flappy Crypto</title>
   <link rel="manifest" href="manifest.json">
+  
+  <!-- IMPORTANT: Load Firebase scripts BEFORE Flutter initialization -->
+  <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+  
+  <!-- Add Firebase products that you want to use -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js"></script>
 
+  <script>
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyAywZ35xfvFdoJnLQSkKSurQOc4GcyZGZo",
+      authDomain: "flappy-vibe-game.firebaseapp.com",
+      projectId: "flappy-vibe-game",
+      storageBucket: "flappy-vibe-game.appspot.com",
+      messagingSenderId: "116785247166",
+      appId: "1:116785247166:web:941920ba7d56640b637fef",
+      measurementId: "G-Z91BGEDHTH"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
+    
+    // Make Firebase available globally for Flutter
+    window.firebase = firebase;
+  </script>
+  
   <script>
     // The value below is injected by flutter build, do not touch.
     const serviceWorkerVersion = null;
   </script>
+  
   <!-- This script adds the flutter initialization JS code -->
   <script src="flutter.js" defer></script>
+  
+  <style>
+    body {
+      background-color: #121212;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start; /* Changed from center to align to top */
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      overflow: hidden;
+    }
+    
+    /* Container for positioning the iPhone with padding */
+    .phone-container {
+      padding-top: 15px; /* Add some spacing from the top of the viewport */
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      height: 100vh;
+      overflow-y: auto; /* Allow scrolling if phone is too tall */
+      -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    }
+    
+    /* iPhone 16+ frame styling - increased dimensions */
+    .iphone-frame {
+      position: relative;
+      width: 430px;  /* iPhone 16+ width */
+      height: 932px; /* iPhone 16+ height */
+      background-color: #1a1a1a;
+      border-radius: 55px; /* Slightly larger radius for the bigger phone */
+      overflow: hidden;
+      box-shadow: 0 0 30px rgba(0,0,0,0.5);
+      border: 14px solid #2a2a2a; /* Slightly thicker border */
+      transition: all 0.3s ease;
+    }
+    
+    /* Game canvas container */
+    .game-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+    
+    /* Loading indicator */
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 24px;
+      z-index: 5;
+    }
+    
+    /* Responsive design */
+    @media (max-height: 950px) {
+      .phone-container {
+        padding-top: 5px; /* Less padding on smaller screens */
+      }
+      
+      .iphone-frame {
+        transform: scale(0.85);
+        transform-origin: top center;
+      }
+    }
+    
+    @media (max-height: 800px) {
+      .iphone-frame {
+        transform: scale(0.75);
+        transform-origin: top center;
+      }
+    }
+
+    /* Dynamic Island styling for newer iPhones */
+    .dynamic-island {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 35px;
+      background-color: #000;
+      border-bottom-left-radius: 18px;
+      border-bottom-right-radius: 18px;
+      z-index: 10;
+    }
+  </style>
 </head>
 <body>
+  <div class="phone-container">
+    <div class="iphone-frame">
+      <div class="dynamic-island"></div>
+      <div class="game-container" id="flutter-container">
+        <div class="loading">Loading your game...</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     window.addEventListener('load', function(ev) {
       // Download main.dart.js
@@ -48,7 +174,11 @@
           serviceWorkerVersion: serviceWorkerVersion,
         },
         onEntrypointLoaded: function(engineInitializer) {
-          engineInitializer.initializeEngine().then(function(appRunner) {
+          engineInitializer.initializeEngine({
+            renderer: 'html',
+            hostElement: document.querySelector('#flutter-container'),
+            canvasKitBaseUrl: "/canvaskit/"
+          }).then(function(appRunner) {
             appRunner.runApp();
           });
         }

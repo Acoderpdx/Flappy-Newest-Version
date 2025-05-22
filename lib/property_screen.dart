@@ -17,7 +17,12 @@ class HouseType {
     required this.assetPrefix,
   });
   
-  String getAssetPath(int level) => 'assets/images/$assetPrefix$level.png';
+  // Fix the asset path format to ensure consistent naming
+  String getAssetPath(int level) {
+    // Add logging to help debug
+    print('Loading house asset: assets/images/$assetPrefix$level.png');
+    return 'assets/images/$assetPrefix$level.png';
+  }
 }
 
 class PropertyScreen extends StatefulWidget {
@@ -359,7 +364,18 @@ class _PropertyScreenState extends State<PropertyScreen> {
                         _catalogHouse.getAssetPath(1), // Always show level 1 in catalog
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) {
-                          return const Icon(Icons.home, color: Colors.amber, size: 120);
+                          print("Error loading catalog house image: ${_catalogHouse.getAssetPath(1)} - $error");
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.home, color: Colors.amber, size: 80),
+                              SizedBox(height: 10),
+                              Text(
+                                "House Preview",
+                                style: TextStyle(color: Colors.amber),
+                              ),
+                            ],
+                          );
                         },
                       ),
                     ),
@@ -515,8 +531,18 @@ class _PropertyScreenState extends State<PropertyScreen> {
                       fit: BoxFit.contain,
                       // Better error handling
                       errorBuilder: (context, error, stackTrace) {
-                        print("Error loading house image: $_currentHouseAsset");
-                        return const Icon(Icons.home, color: Colors.amber, size: 120);
+                        print("Error loading house image: $_currentHouseAsset - $error");
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.home, color: Colors.amber, size: 80),
+                            SizedBox(height: 10),
+                            Text(
+                              "Image not found",
+                              style: TextStyle(color: Colors.amber),
+                            ),
+                          ],
+                        );
                       },
                     ),
                   ),
