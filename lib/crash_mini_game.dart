@@ -165,6 +165,44 @@ class _CrashMiniGameScreenState extends State<CrashMiniGameScreen> {
           gameOver = true;
           timer.cancel();
           
+          // Handle bet loss if player didn't cash out
+          if (!userCashedOut) {
+            // Deduct the bet amount from player's balance
+            if (_selectedBet == 'RedPill') {
+              // Call the callback with a negative value to subtract the bet
+              widget.onCollectibleChange('RedPill', -_currentRoundRedPills);
+              
+              // Show bet loss message
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('You lost $_currentRoundRedPills Red Pills!'),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
+                    )
+                  );
+                }
+              });
+            } else if (_selectedBet == 'LionsMane') {
+              // Call the callback with a negative value to subtract the bet
+              widget.onCollectibleChange('LionsMane', -_currentRoundLionsMane);
+              
+              // Show bet loss message
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('You lost $_currentRoundLionsMane Lions Mane!'),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
+                    )
+                  );
+                }
+              });
+            }
+          }
+          
           // Add to game history
           _addToHistory(multiplier, false);
           
