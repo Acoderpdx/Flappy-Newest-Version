@@ -127,6 +127,12 @@ class CryptoCurrency {
     // Ensure price doesn't go negative
     if (newPrice <= 0) newPrice = currentPrice * 0.9;
     
+    // Special handling for BrowneCoin - keep it between $1-50
+    if (name == "BrowneCoin") {
+      if (newPrice < 1.0) newPrice = 1.0;
+      if (newPrice > 50.0) newPrice = 50.0;
+    }
+    
     // Update current price
     currentPrice = newPrice;
     

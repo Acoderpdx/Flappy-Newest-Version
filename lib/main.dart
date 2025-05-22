@@ -223,6 +223,37 @@ class Solana {
   }
 }
 
+// Add after the Solana class
+
+class BrowneCoin {
+  double xPosition;
+  double yAlign;
+  bool collected;
+
+  BrowneCoin({required this.xPosition, required this.yAlign, this.collected = false});
+
+  Widget build(BuildContext context) {
+    if (collected) return SizedBox.shrink();
+    final screenSize = MediaQuery.of(context).size;
+    double yPx = screenSize.height / 2 + yAlign * (screenSize.height / 2);
+    return Positioned(
+      left: xPosition,
+      top: yPx - 20,
+      child: Image.asset(
+        'assets/images/brownecoin.png',
+        width: 40,
+        height: 40,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.brown,
+            child: Center(child: Text('Image not found', style: TextStyle(color: Colors.white))),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _GameScreenState extends State<GameScreen> {
   double birdY = 0;
   double velocity = 0;
@@ -252,9 +283,11 @@ class _GameScreenState extends State<GameScreen> {
   int bitcoinCollected = 0;
   int ethereumCollected = 0;
   int solanaCollected = 0; // Keep this existing variable
+  int browneCoinCollected = 0;
   List<LionsMane> lionsManes = [];
   List<RedPill> redPills = [];
   List<Solana> solanas = []; // Replace bitcoins with solanas
+  List<BrowneCoin> browneCoins = [];
   int collectibleCycleCounter = 0;
   List<int> collectibleTypes = [];
 
@@ -298,6 +331,7 @@ class _GameScreenState extends State<GameScreen> {
   List<double> bitcoinPnlHistory = [0];
   List<double> ethereumPnlHistory = [0]; // Add Ethereum PnL history
   List<double> solanaPnlHistory = [0]; // Add Solana PnL history
+  List<double> browneCoinPnlHistory = [0]; // For portfolio tracking
   List<double> totalWealthHistory = [0];
 
   // Add this field if missing:
@@ -388,6 +422,7 @@ class _GameScreenState extends State<GameScreen> {
     lionsManes.clear();
     redPills.clear();
     solanas.clear();
+    browneCoins.clear();
     collectibleCycleCounter = 0;
     
     _portalVisible = false;
@@ -437,11 +472,8 @@ class _GameScreenState extends State<GameScreen> {
           xPosition: xPos + 70 / 2 - 20,
           yAlign: yAlign,
         ));
-        solanas.add(Solana(
-          xPosition: xPos + 70 / 2 - 20,
-          yAlign: yAlign,
-          collected: true,
-        ));
+        solanas.add(Solana(xPosition: -1000, yAlign: 0, collected: true));
+        browneCoins.add(BrowneCoin(xPosition: -1000, yAlign: 0, collected: true));
       } else {
         // Position 5 (every 6th): spawn Solana
         lionsManes.add(LionsMane(
@@ -654,6 +686,7 @@ class _GameScreenState extends State<GameScreen> {
     for (int i = 0; i < glueSticks.length; i++) {
       if (i < lionsManes.length) lionsManes[i].xPosition -= glueStickSpeed;
       if (i < solanas.length) solanas[i].xPosition -= glueStickSpeed;
+      if (i < browneCoins.length) browneCoins[i].xPosition -= glueStickSpeed; // Add this line
       if (i < redPills.length) redPills[i].xPosition -= glueStickSpeed;
     }
   }
@@ -691,9 +724,8 @@ class _GameScreenState extends State<GameScreen> {
         double gapCenterY = (gapTop + gapBottom) / 2;
         double yAlign = (gapCenterY - MediaQuery.of(context).size.height / 2) / (MediaQuery.of(context).size.height / 2);
 
-        // Apply collectible pattern: 5 Lions Mane followed by 1 Solana
-        if (collectibleCycleCounter % 6 != 5) {
-          // First 5 positions (0,1,2,3,4): spawn Lions Mane
+        // Replace the existing collectible pattern with this new one
+        if (shouldSpawnLionsMane(collectibleCycleCounter)) {
           if (i < lionsManes.length) {
             lionsManes[i] = LionsMane(
               xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
@@ -708,35 +740,46 @@ class _GameScreenState extends State<GameScreen> {
             ));
           }
           
+          // Hide other collectibles
           if (i < solanas.length) {
-            solanas[i] = Solana(
-              xPosition: -1000,  // Off-screen
-              yAlign: 0,
-              collected: true,
-            );
+            solanas[i] = Solana(xPosition: -1000, yAlign: 0, collected: true);
           } else {
-            solanas.add(Solana(
-              xPosition: -1000,  // Off-screen
-              yAlign: 0,
-              collected: true,
-            ));
+            solanas.add(Solana(xPosition: -1000, yAlign: 0, collected: true));
           }
-        } else {
-          // Position 5 (every 6th): spawn Solana
-          if (i < lionsManes.length) {
-            lionsManes[i] = LionsMane(
-              xPosition: -1000,  // Off-screen
-              yAlign: 0,
-              collected: true,
+          
+          if (i < browneCoins.length) {
+            browneCoins[i] = BrowneCoin(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            browneCoins.add(BrowneCoin(xPosition: -1000, yAlign: 0, collected: true));
+          }
+        } else if (shouldSpawnBrowneCoin(collectibleCycleCounter)) {
+          if (i < browneCoins.length) {
+            browneCoins[i] = BrowneCoin(
+              xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
+              yAlign: yAlign,
+              collected: false,
             );
           } else {
-            lionsManes.add(LionsMane(
-              xPosition: -1000,  // Off-screen
-              yAlign: 0,
-              collected: true,
+            browneCoins.add(BrowneCoin(
+              xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
+              yAlign: yAlign,
+              collected: false,
             ));
           }
           
+          // Hide other collectibles
+          if (i < lionsManes.length) {
+            lionsManes[i] = LionsMane(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            lionsManes.add(LionsMane(xPosition: -1000, yAlign: 0, collected: true));
+          }
+          
+          if (i < solanas.length) {
+            solanas[i] = Solana(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            solanas.add(Solana(xPosition: -1000, yAlign: 0, collected: true));
+          }
+        } else if (shouldSpawnSolana(collectibleCycleCounter)) {
           if (i < solanas.length) {
             solanas[i] = Solana(
               xPosition: glueStick.xPosition + glueStick.width / 2 - 20,
@@ -750,24 +793,21 @@ class _GameScreenState extends State<GameScreen> {
               collected: false,
             ));
           }
+          
+          // Hide other collectibles
+          if (i < lionsManes.length) {
+            lionsManes[i] = LionsMane(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            lionsManes.add(LionsMane(xPosition: -1000, yAlign: 0, collected: true));
+          }
+          
+          if (i < browneCoins.length) {
+            browneCoins[i] = BrowneCoin(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            browneCoins.add(BrowneCoin(xPosition: -1000, yAlign: 0, collected: true));
+          }
         }
-        
-        // Always ensure there's a red pill for red mode
-        if (i < redPills.length) {
-          redPills[i] = RedPill(
-            xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
-            yAlign: yAlign,
-            collected: false,
-          );
-        } else {
-          redPills.add(RedPill(
-            xPosition: glueStick.xPosition + glueStick.width / 2 - 17,
-            yAlign: yAlign,
-            collected: false,
-          ));
-        }
-        
-        // Increment the collectible cycle counter
+
         collectibleCycleCounter = (collectibleCycleCounter + 1) % 6;
       }
     }
@@ -784,8 +824,9 @@ class _GameScreenState extends State<GameScreen> {
       lionsManes.clear();
       redPills.clear();
       solanas.clear();
+      browneCoins.clear(); // Add this line
       collectibleTypes.clear();
-      collectibleCycleCounter = 0;  // Ensure this resets to maintain pattern
+      collectibleCycleCounter = 0;
       // lionsManeCollected, redPillCollected, bitcoinCollected, solanaCollected are NOT reset here!
       _portalVisible = false;
       _gapsSinceLastPortal = 0;
@@ -876,13 +917,15 @@ class _GameScreenState extends State<GameScreen> {
               lionsManeCollected: lionsManeCollected,
               redPillCollected: redPillCollected,
               bitcoinCollected: bitcoinCollected,
-              ethereumCollected: ethereumCollected,  // FIXED: Use the int value
-              solanaCollected: solanaCollected, 
+              ethereumCollected: ethereumCollected,
+              solanaCollected: solanaCollected,
+              browneCoinCollected: browneCoinCollected, // Add this line
               lionsManePnlHistory: lionsManePnlHistory,
               redPillPnlHistory: redPillPnlHistory,
               bitcoinPnlHistory: bitcoinPnlHistory,
               ethereumPnlHistory: ethereumPnlHistory,
               solanaPnlHistory: solanaPnlHistory,
+              browneCoinPnlHistory: browneCoinPnlHistory, // Add this line
               totalWealthHistory: totalWealthHistory,
               usdBalance: usdBalance,
               onTrade: _handleTrade,
@@ -909,6 +952,7 @@ class _GameScreenState extends State<GameScreen> {
         ...[
           ...lionsManes.map((mane) => mane.build(context)).toList(),
           ...solanas.map((sol) => sol.build(context)).toList(),
+          ...browneCoins.map((coin) => coin.build(context)).toList(), // Add this line
         ],
       // Bird
       Align(
@@ -1021,10 +1065,10 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                   SizedBox(width: 18),
-                  // Bitcoin
+                  // Replace Bitcoin with Solana counter
                   Image.asset(
-                    'assets/images/bitcoin.png',
-                    width: 28,
+                    'assets/images/solana.png', // Changed from bitcoin.png to solana.png
+                    width: 28, 
                     height: 28,
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
@@ -1035,10 +1079,10 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                   SizedBox(width: 4),
                   Text(
-                    '$bitcoinCollected',
+                    '$solanaCollected', // Changed from bitcoinCollected to solanaCollected
                     style: TextStyle(
                       fontSize: 32,
-                      color: Colors.amber,
+                      color: Colors.purple, // Changed from amber to purple to match Solana's color
                       fontWeight: FontWeight.bold,
                       shadows: [
                         Shadow(
@@ -1210,12 +1254,14 @@ class _GameScreenState extends State<GameScreen> {
                 redPillCollected: redPillCollected,
                 bitcoinCollected: bitcoinCollected,
                 ethereumCollected: ethereumCollected,
-                solanaCollected: solanaCollected, // Add Solana
+                solanaCollected: solanaCollected,
+                browneCoinCollected: browneCoinCollected, // Add this line
                 lionsManePnlHistory: lionsManePnlHistory,
                 redPillPnlHistory: redPillPnlHistory,
                 bitcoinPnlHistory: bitcoinPnlHistory,
                 ethereumPnlHistory: ethereumPnlHistory,
-                solanaPnlHistory: solanaPnlHistory, // Add Solana history
+                solanaPnlHistory: solanaPnlHistory,
+                browneCoinPnlHistory: browneCoinPnlHistory, // Add this line
                 totalWealthHistory: totalWealthHistory,
                 usdBalance: usdBalance,
                 onTrade: _handleTrade,
@@ -1401,32 +1447,36 @@ class _GameScreenState extends State<GameScreen> {
     redPillPnlHistory.add(redPillCollected.toDouble());
     bitcoinPnlHistory.add(bitcoinCollected.toDouble());
     ethereumPnlHistory.add(ethereumCollected.toDouble());
-    solanaPnlHistory.add(solanaCollected.toDouble()); // Add Solana history
+    solanaPnlHistory.add(solanaCollected.toDouble());
+    browneCoinPnlHistory.add(browneCoinCollected.toDouble()); // Add this line
     
     // Calculate USD equivalent with all crypto included
     double bitcoinPrice = 69000.0;
     double ethereumPrice = 3500.0;
-    double solanaPrice = 175.0; // Average price for Solana
+    double solanaPrice = 175.0;
+    double browneCoinPrice = 350.0; // Set a price for BrowneCoin
+    
     double totalValue = lionsManeCollected * 100.0 + 
                       redPillCollected * 500.0 + 
                       bitcoinCollected * bitcoinPrice +
                       ethereumCollected * ethereumPrice +
                       solanaCollected * solanaPrice +
+                      browneCoinCollected * browneCoinPrice + // Add this line
                       usdBalance;
                       
     totalWealthHistory.add(totalValue);
   }
   
   // Update the handler for trading activities to include Solana
-  void _handleTrade(int lionsManeDelta, int redPillDelta, int bitcoinDelta, int ethereumDelta, int solanaDelta, double usdDelta) {
+  void _handleTrade(int lionsManeDelta, int redPillDelta, int bitcoinDelta, int ethereumDelta, int solanaDelta, int browneCoinDelta, double usdDelta) {
     setState(() {
       lionsManeCollected = (lionsManeCollected + lionsManeDelta).clamp(0, 999999);
       redPillCollected = (redPillCollected + redPillDelta).clamp(0, 999999);
       bitcoinCollected = (bitcoinCollected + bitcoinDelta).clamp(0, 999999);
       ethereumCollected = (ethereumCollected + ethereumDelta).clamp(0, 999999);
       solanaCollected = (solanaCollected + solanaDelta).clamp(0, 999999);
+      browneCoinCollected = (browneCoinCollected + browneCoinDelta).clamp(0, 999999); // Add this line
       usdBalance += usdDelta;
-      print("USD Balance updated: $usdBalance"); // Debug log
       _updatePnlHistory();
     });
   }
@@ -1615,6 +1665,26 @@ class _GameScreenState extends State<GameScreen> {
           }
         }
       }
+
+      // Check BrowneCoin collisions
+      for (var i = 0; i < browneCoins.length; i++) {
+        if (!browneCoins[i].collected) {
+          double yPx = screenSize.height / 2 + browneCoins[i].yAlign * (screenSize.height / 2);
+          Rect coinRect = Rect.fromLTWH(
+            browneCoins[i].xPosition,
+            yPx - 20,
+            40,
+            40,
+          );
+          if (birdRect.overlaps(coinRect)) {
+            setState(() {
+              browneCoins[i].collected = true;
+              browneCoinCollected++;
+              _updatePnlHistory();
+            });
+          }
+        }
+      }
     }
   }
 
@@ -1664,6 +1734,11 @@ class _GameScreenState extends State<GameScreen> {
       jump();
     }
   }
+
+  // Add these methods to your _GameScreenState class
+bool shouldSpawnLionsMane(int position) => position % 6 == 0 || position % 6 == 2 || position % 6 == 4;
+bool shouldSpawnBrowneCoin(int position) => position % 6 == 1 || position % 6 == 3;
+bool shouldSpawnSolana(int position) => position % 6 == 5;
 }
 
 class EndScreenOverlay extends StatefulWidget {
@@ -2051,7 +2126,7 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
           ),
         ),
       ],
-    );
+                         );
   }
 }
 
@@ -2065,16 +2140,16 @@ class ScrollingBackground extends StatefulWidget {
 }
 
 class _ScrollingBackgroundState extends State<ScrollingBackground> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  double _offset = 0.0;
+  late AnimationController _controller;
   double? _lastTick;
-
+  double _offset = 0.0;
+  
   @override
-  void initState() {
+  void initState() {  // Missing "void initState()" 
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 10), // Set a duration for repeat
+      duration: const Duration(seconds: 10),
     )..addListener(_tick)
      ..repeat();
   }
@@ -2082,6 +2157,7 @@ class _ScrollingBackgroundState extends State<ScrollingBackground> with SingleTi
   void _tick() {
     final now = _controller.lastElapsedDuration?.inMilliseconds.toDouble() ?? 0.0;
     if (_lastTick == null) {
+
       _lastTick = now;
       return;
     }
@@ -2162,7 +2238,7 @@ class _TitleScreenContent extends StatefulWidget {
 class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
-  double birdY = 0.0;
+   double birdY = 0.0;
   double velocity = 0.0;
   final double gravity = 0.007 * 0.5;
   final double flapVelocity = -0.11;
@@ -2180,14 +2256,14 @@ class _TitleScreenContentState extends State<_TitleScreenContent> with SingleTic
   final double _dropIntervalSec = 1.0 / 3.0; // 3 per second
 
   // Use the same gravity and maxFallSpeed as the main game bird
-  final double collectibleGravity = 0.0039;
+  final double collectibleGravity =  0.0039;
   final double collectibleMaxFallSpeed = 0.025;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-           duration: const Duration(seconds: 3),
+                     duration: const Duration(seconds: 3),
       vsync: this,
     )..repeat(reverse: false);
     _animation = Tween<double>(begin: -1.2, end: 1.2).animate(

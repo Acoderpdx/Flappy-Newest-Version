@@ -9,35 +9,39 @@ class PortfolioScreen extends StatefulWidget {
   final int redPillCollected;
   final int bitcoinCollected;
   final int ethereumCollected;
-  final int solanaCollected; // Add Solana support
+  final int solanaCollected;
+  final int browneCoinCollected; // Add this line
   final List<double> lionsManePnlHistory;
   final List<double> redPillPnlHistory;
   final List<double> bitcoinPnlHistory;
   final List<double> ethereumPnlHistory;
-  final List<double> solanaPnlHistory; // Add Solana history
+  final List<double> solanaPnlHistory;
+  final List<double> browneCoinPnlHistory; // Add this line
   final List<double> totalWealthHistory;
   final double usdBalance;
-  final Function(int, int, int, int, int, double)? onTrade; // Updated to include Solana
-  final VoidCallback? onClose;
+  final Function(int, int, int, int, int, int, double) onTrade; // Update parameters to include BrowneCoin
+  final VoidCallback onClose;
 
   const PortfolioScreen({
     Key? key,
     required this.lionsManeCollected,
     required this.redPillCollected,
     required this.bitcoinCollected,
-    this.ethereumCollected = 0,
-    this.solanaCollected = 0, // Default value
-    this.lionsManePnlHistory = const [0],
-    this.redPillPnlHistory = const [0],
-    this.bitcoinPnlHistory = const [0],
-    this.ethereumPnlHistory = const [0],
-    this.solanaPnlHistory = const [0], // Default value
-    this.totalWealthHistory = const [0],
-    this.usdBalance = 0.0,
-    this.onTrade,
-    this.onClose,
+    required this.ethereumCollected,
+    required this.solanaCollected,
+    required this.browneCoinCollected, // Add this line
+    required this.lionsManePnlHistory,
+    required this.redPillPnlHistory,
+    required this.bitcoinPnlHistory,
+    required this.ethereumPnlHistory,
+    required this.solanaPnlHistory,
+    required this.browneCoinPnlHistory, // Add this line
+    required this.totalWealthHistory,
+    required this.usdBalance,
+    required this.onTrade,
+    required this.onClose,
   }) : super(key: key);
-
+  
   @override
   State<PortfolioScreen> createState() => _PortfolioScreenState();
 }
@@ -61,6 +65,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   late int _bitcoinCount;
   late int _ethereumCount;
   late int _solanaCount; // Add Solana count
+  late int _browneCoinCount; // Add this line
   late double _usdBalance;
   
   // Bitcoin price simulation variables
@@ -81,6 +86,12 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   final double _maxSolPrice = 300.0;
   List<double> _solPriceHistory = [];
   
+  // BrowneCoin price simulation variables - highly volatile
+  late double _currentBrowneCoinPrice;
+  final double _minBrowneCoinPrice = 1.0;
+  final double _maxBrowneCoinPrice = 10.0;
+  List<double> _browneCoinPriceHistory = [];
+  
   // Trading state
   final TextEditingController _buyBtcAmountController = TextEditingController();
   final TextEditingController _sellBtcAmountController = TextEditingController();
@@ -88,6 +99,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   final TextEditingController _sellEthAmountController = TextEditingController();
   final TextEditingController _buySolAmountController = TextEditingController();
   final TextEditingController _sellSolAmountController = TextEditingController();
+  final TextEditingController _buyBrowneCoinAmountController = TextEditingController();
+  final TextEditingController _sellBrowneCoinAmountController = TextEditingController();
   
   // Price chart variables
   final int _maxPriceHistoryPoints = 50;
@@ -98,6 +111,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   String _selectedTimeframe = '1H';
   String _selectedEthTimeframe = '1H';
   String _selectedSolTimeframe = '1H';
+  String _selectedBrowneCoinTimeframe = '1H'; // Add this line
 
   // Getters for max tradable amounts
   double get maxBtcCanBuy {
@@ -115,10 +129,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     return _usdBalance / _currentSolPrice;
   }
 
+  double get maxBrowneCoinCanBuy {
+    if (_currentBrowneCoinPrice <= 0) return 0;
+    return _usdBalance / _currentBrowneCoinPrice;
+  }
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     
     // Initialize local state with widget values
     _lionsManeCount = widget.lionsManeCollected;
@@ -126,6 +145,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     _bitcoinCount = widget.bitcoinCollected;
     _ethereumCount = widget.ethereumCollected;
     _solanaCount = widget.solanaCollected;
+    _browneCoinCount = widget.browneCoinCollected; // Add this line
     _usdBalance = widget.usdBalance;
     
     // Get the singleton market manager instance
@@ -135,6 +155,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     _currentBtcPrice = _marketManager.bitcoin.currentPrice;
     _currentEthPrice = _marketManager.ethereum.currentPrice;
     _currentSolPrice = _marketManager.solana.currentPrice;
+    _currentBrowneCoinPrice = _marketManager.browneCoin.currentPrice; // Add this line
     
     // Create initial price histories if needed
     _btcPriceHistory = _marketManager.bitcoin.priceHistory
@@ -148,6 +169,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     _solPriceHistory = _marketManager.solana.priceHistory
         .map((point) => point.price)
         .toList();
+        
+    _browneCoinPriceHistory = _marketManager.browneCoin.priceHistory
+        .map((point) => point.price)
+        .toList(); // Add this line
     
     // Set up a timer to periodically refresh the UI with latest prices
     _uiUpdateTimer = Timer.periodic(Duration(seconds: 1), (timer) {
@@ -167,6 +192,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
           _solPriceHistory = _marketManager.solana.priceHistory
               .map((point) => point.price)
               .toList();
+              
+          _currentBrowneCoinPrice = _marketManager.browneCoin.currentPrice; // Add this line
+          _browneCoinPriceHistory = _marketManager.browneCoin.priceHistory
+              .map((point) => point.price)
+              .toList(); // Add this line
         });
       } else {
         // If widget is no longer mounted, cancel the timer
@@ -185,6 +215,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     _sellEthAmountController.dispose();
     _buySolAmountController.dispose();
     _sellSolAmountController.dispose();
+    _buyBrowneCoinAmountController.dispose();
+    _sellBrowneCoinAmountController.dispose();
     super.dispose();
   }
   
@@ -193,9 +225,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     double btcValue = _bitcoinCount * _currentBtcPrice;
     double ethValue = _ethereumCount * _currentEthPrice;
     double solValue = _solanaCount * _currentSolPrice; // Add Solana value
+    double browneCoinValue = _browneCoinCount * _currentBrowneCoinPrice; // Add this line
     double lionsManeValue = _lionsManeCount * _lionsManeRate;
     double redPillValue = _redPillCount * _redPillRate;
-    return _usdBalance + btcValue + ethValue + solValue + lionsManeValue + redPillValue;
+    return _usdBalance + btcValue + ethValue + solValue + browneCoinValue + lionsManeValue + redPillValue;
   }
   
   // Exchange one Lions Mane to USD
@@ -212,7 +245,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       // Then notify parent component
       if (widget.onTrade != null) {
         // Call the parent's onTrade callback to update the values
-        widget.onTrade!(-1, 0, 0, 0, 0, usdAmount);  // Fixed: Added 0 for Solana
+        widget.onTrade!(-1, 0, 0, 0, 0, 0, usdAmount);  // Fixed: Added 0 for Solana and BrowneCoin
       }
     }
   }
@@ -231,7 +264,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       // Then notify parent component
       if (widget.onTrade != null) {
         // Call the parent's onTrade callback to update the values
-        widget.onTrade!(0, -1, 0, 0, 0, usdAmount);  // Fixed: Added 0 for Solana
+        widget.onTrade!(0, -1, 0, 0, 0, 0, usdAmount);  // Fixed: Added 0 for Solana and BrowneCoin
       }
     }
   }
@@ -262,7 +295,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         
         if (widget.onTrade != null) {
           // Call the parent's onTrade callback
-          widget.onTrade!(0, 0, btcAmount, 0, 0, -usdCost);  // Fixed: Added 0 for Solana
+          widget.onTrade!(0, 0, btcAmount, 0, 0, 0, -usdCost);  // Fixed: Added 0 for Solana and BrowneCoin
         }
       } else {
         // Show error message if not enough USD
@@ -297,7 +330,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         // Then notify parent component
         if (widget.onTrade != null) {
           // Call the parent's onTrade callback
-          widget.onTrade!(0, 0, -btcAmount, 0, 0, usdAmount);  // Fixed: Added 0 for Solana
+          widget.onTrade!(0, 0, -btcAmount, 0, 0, 0, usdAmount);  // Fixed: Added 0 for Solana and BrowneCoin
         }
 
         // Confirm message
@@ -332,7 +365,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         });
         
         if (widget.onTrade != null) {
-          widget.onTrade!(0, 0, 0, ethAmount, 0, -usdCost);  // Fixed: Added 0 for Solana
+          widget.onTrade!(0, 0, 0, ethAmount, 0, 0, -usdCost);  // Fixed: Added 0 for Solana and BrowneCoin
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -359,7 +392,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         });
         
         if (widget.onTrade != null) {
-          widget.onTrade!(0, 0, 0, -ethAmount, 0, usdAmount);  // Fixed: Added 0 for Solana
+          widget.onTrade!(0, 0, 0, -ethAmount, 0, 0, usdAmount);  // Fixed: Added 0 for Solana and BrowneCoin
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -392,7 +425,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         });
         
         if (widget.onTrade != null) {
-          widget.onTrade!(0, 0, 0, 0, solAmount, -usdCost);
+          widget.onTrade!(0, 0, 0, 0, solAmount, 0, -usdCost);
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -419,7 +452,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
         });
         
         if (widget.onTrade != null) {
-          widget.onTrade!(0, 0, 0, 0, -solAmount, usdAmount);
+          widget.onTrade!(0, 0, 0, 0, -solAmount, 0, usdAmount);
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -428,6 +461,66 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Not enough Solana to sell'))
+        );
+      }
+    }
+  }
+  
+  // Buy BrowneCoin with USD
+  void _buyBrowneCoin() {
+    double? amount = double.tryParse(_buyBrowneCoinAmountController.text);
+    if (amount != null && amount > 0) {
+      double usdCost = amount * _currentBrowneCoinPrice;
+      
+      if (_usdBalance >= usdCost) {
+        int browneCoinAmount = amount.floor();
+        if (browneCoinAmount <= 0) return;
+        
+        usdCost = browneCoinAmount * _currentBrowneCoinPrice;
+        
+        setState(() {
+          _browneCoinCount += browneCoinAmount;
+          _usdBalance -= usdCost;
+          _buyBrowneCoinAmountController.clear();
+        });
+        
+        if (widget.onTrade != null) {
+          widget.onTrade!(0, 0, 0, 0, 0, browneCoinAmount, -usdCost);
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Not enough USD for this purchase'))
+        );
+      }
+    }
+  }
+  
+  // Sell BrowneCoin for USD
+  void _sellBrowneCoin() {
+    double? amount = double.tryParse(_sellBrowneCoinAmountController.text);
+    if (amount != null && amount > 0) {
+      int browneCoinAmount = amount.floor();
+      if (browneCoinAmount <= 0) return;
+      
+      if (_browneCoinCount >= browneCoinAmount) {
+        double usdAmount = browneCoinAmount * _currentBrowneCoinPrice;
+        
+        setState(() {
+          _browneCoinCount -= browneCoinAmount;
+          _usdBalance += usdAmount;
+          _sellBrowneCoinAmountController.clear();
+        });
+        
+        if (widget.onTrade != null) {
+          widget.onTrade!(0, 0, 0, 0, 0, -browneCoinAmount, usdAmount);
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Successfully sold $browneCoinAmount BrowneCoin for \$${usdAmount.toStringAsFixed(2)}'))
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Not enough BrowneCoin to sell'))
         );
       }
     }
@@ -498,6 +591,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     if (name == 'Bitcoin') valueColor = _matrixGreen;
     else if (name == 'Ethereum') valueColor = Colors.blueAccent;
     else if (name == 'Solana') valueColor = _solanaPurple;
+    else if (name == 'BrowneCoin') valueColor = Colors.orange; // Add this line
     
     return Card(
       color: Colors.grey[850],
@@ -529,6 +623,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                 if (name == 'Bitcoin') _buildPriceTrend(_btcPriceHistory, _matrixGreen),
                 if (name == 'Ethereum') _buildPriceTrend(_ethPriceHistory, Colors.blueAccent),
                 if (name == 'Solana') _buildPriceTrend(_solPriceHistory, _solanaPurple),
+                if (name == 'BrowneCoin') _buildPriceTrend(_browneCoinPriceHistory, Colors.orange), // Add this line
               ],
             ),
             SizedBox(height: 12),
@@ -671,13 +766,14 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
             children: [
               TabBar(
                 controller: _tabController,
-                isScrollable: true, // Make tabs scrollable to fit 5 tabs
+                isScrollable: true, // Make tabs scrollable to fit 6 tabs
                 tabs: [
                   Tab(text: 'Portfolio'),
                   Tab(text: 'Trade'),
                   Tab(text: 'Bitcoin'),
                   Tab(text: 'Ethereum'),
-                  Tab(text: 'Solana'), // Add Solana tab
+                  Tab(text: 'Solana'),
+                  Tab(text: 'BrowneCoin'), // Add this line
                 ],
                 onTap: (int index) {
                   setState(() {}); // Force rebuild on tab change to ensure charts display
@@ -781,6 +877,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                         _solanaCount,
                         _currentSolPrice,
                         _solanaCount * _currentSolPrice,
+                      ),
+                      
+                      // BrowneCoin Asset Card
+                      _buildAssetCard(
+                        'BrowneCoin',
+                        'assets/images/brownecoin.png', // FIXED - removed underscore
+                        _browneCoinCount,
+                        _currentBrowneCoinPrice,
+                        _browneCoinCount * _currentBrowneCoinPrice,
                       ),
                       
                       // Lions Mane Asset Card
@@ -904,6 +1009,37 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                                   ),
                                   SizedBox(width: 8),
                                   _buildPriceTrend(_solPriceHistory, _solanaPurple),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      // BrowneCoin section
+                      Card(
+                        color: Colors.grey[900],
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'BrowneCoin Price',
+                                style: TextStyle(color: Colors.white70, fontSize: 16),
+                              ),
+                              Row(
+                                children: [
+                                  Text(
+                                    '\$${_currentBrowneCoinPrice.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  _buildPriceTrend(_browneCoinPriceHistory, Colors.orange), // Add this line
                                 ],
                               ),
                             ],
@@ -1173,6 +1309,98 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                                     SizedBox(height: 8),
                                     ElevatedButton(
                                       onPressed: _solanaCount > 0 ? _sellSolana : null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                      child: const Text('Sell'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      SizedBox(height: 24),
+                      
+                      // Buy/Sell BrowneCoin UI
+                      Text(
+                        'BrowneCoin Trading',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Row(
+                        children: [
+                          // Buy BrowneCoin
+                          Expanded(
+                            child: Card(
+                              color: Colors.grey[850],
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Buy BrowneCoin',
+                                      style: TextStyle(color: Colors.white, fontSize: 16),
+                                    ),
+                                    SizedBox(height: 8),
+                                    TextField(
+                                      controller: _buyBrowneCoinAmountController,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      style: const TextStyle(color: Colors.white),
+                                      decoration: InputDecoration(
+                                        labelText: 'BrowneCoin Amount',
+                                        labelStyle: const TextStyle(color: Colors.white70),
+                                        suffix: const Text('BrowneCoin', style: TextStyle(color: Colors.white70)),
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    ElevatedButton(
+                                      onPressed: _usdBalance > 0 ? _buyBrowneCoin : null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                      ),
+                                      child: const Text('Buy'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          // Sell BrowneCoin
+                          Expanded(
+                            child: Card(
+                              color: Colors.grey[850],
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Sell BrowneCoin',
+                                      style: TextStyle(color: Colors.white, fontSize: 16),
+                                    ),
+                                    SizedBox(height: 8),
+                                    TextField(
+                                      controller: _sellBrowneCoinAmountController,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      style: const TextStyle(color: Colors.white),
+                                      decoration: InputDecoration(
+                                        labelText: 'BrowneCoin Amount',
+                                        labelStyle: const TextStyle(color: Colors.white70),
+                                        suffix: const Text('BrowneCoin', style: TextStyle(color: Colors.white70)),
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    ElevatedButton(
+                                      onPressed: _browneCoinCount > 0 ? _sellBrowneCoin : null,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.redAccent,
                                       ),
@@ -1593,6 +1821,130 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
                     ],
                   ),
                 ),
+                
+                // BrowneCoin Tab - Price chart and analysis
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'BrowneCoin Price',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                '\$${_currentBrowneCoinPrice.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey[800]!),
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                              child: Text(
+                                'BrowneCoin/USD',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Timeframe selector
+                      Container(
+                        height: 60,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildTimeframeButton('1H', _selectedBrowneCoinTimeframe == '1H', Colors.orange),
+                              _buildTimeframeButton('24H', _selectedBrowneCoinTimeframe == '24H', Colors.orange),
+                              _buildTimeframeButton('1W', _selectedBrowneCoinTimeframe == '1W', Colors.orange),
+                              _buildTimeframeButton('1M', _selectedBrowneCoinTimeframe == '1M', Colors.orange),
+                              _buildTimeframeButton('1Y', _selectedBrowneCoinTimeframe == '1Y', Colors.orange),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Price chart
+                      Container(
+                        height: 300, // Fixed height ensures the chart is visible
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[800]!),
+                        ),
+                        child: _buildPriceChart(_browneCoinPriceHistory, _minBrowneCoinPrice, _maxBrowneCoinPrice, Colors.orange),
+                      ),
+                      
+                      SizedBox(height: 20),
+                      
+                      // Market statistics
+                      Card(
+                        color: Colors.grey[900],
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Market Statistics',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildStatItem('24h High', '\$${(_currentBrowneCoinPrice * 1.15).toStringAsFixed(2)}'),
+                                  _buildStatItem('24h Low', '\$${(_currentBrowneCoinPrice * 0.85).toStringAsFixed(2)}'),
+                                ],
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildStatItem('All-Time High', '\$10.00'),
+                                  _buildStatItem('All-Time Low', '\$1.00'),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -1610,6 +1962,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
             _selectedEthTimeframe = timeframe;
           } else if (color == _solanaPurple) {
             _selectedSolTimeframe = timeframe;
+          } else if (color == Colors.orange) {
+            _selectedBrowneCoinTimeframe = timeframe; // Add this line
           } else {
             _selectedTimeframe = timeframe;
           }

@@ -13,6 +13,7 @@ class CryptoMarketManager {
   late CryptoCurrency bitcoin;
   late CryptoCurrency ethereum;
   late CryptoCurrency solana;
+  late CryptoCurrency browneCoin; // Add this line
   
   // Timer for background updates
   Timer? _updateTimer;
@@ -52,6 +53,15 @@ class CryptoMarketManager {
       initialPrice: 80.0 + (Random().nextDouble() * 40),  // $80-120
     );
     
+    // Add BrowneCoin initialization
+    browneCoin = CryptoCurrency(
+      name: "BrowneCoin",
+      symbol: "BRWN", 
+      imagePath: "assets/images/brownecoin.png",
+      color: Colors.orange,
+      initialPrice: 1.0 + (Random().nextDouble() * 9.0),  // Start between $1-10
+    );
+    
     // Start the background update timer (updates every 5 seconds for more visible movement)
     _updateTimer = Timer.periodic(Duration(seconds: 5), (_) => _updatePrices());
     
@@ -68,11 +78,13 @@ class CryptoMarketManager {
     bitcoin.updatePrice();
     ethereum.updatePrice();
     solana.updatePrice();
+    browneCoin.updatePrice(); // Add this line
     
     // Check for significant price changes (more than 5% since last hour)
     _checkForSignificantChanges(bitcoin);
     _checkForSignificantChanges(ethereum);
     _checkForSignificantChanges(solana);
+    _checkForSignificantChanges(browneCoin); // Add this line
     
     // Occasional market events
     if (Random().nextDouble() < 0.01) { // 1% chance per update
@@ -105,7 +117,7 @@ class CryptoMarketManager {
   
   // Get all currencies as a list for easy iteration
   List<CryptoCurrency> getAllCurrencies() {
-    return [bitcoin, ethereum, solana];
+    return [bitcoin, ethereum, solana, browneCoin]; // Add browneCoin to this list
   }
   
   // News events that impact market
