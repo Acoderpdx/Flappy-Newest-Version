@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'main.dart'; // Import for ScrollingBackground
+import 'crypto_market_manager.dart';
 
 class PortfolioScreen extends StatefulWidget {
   final int lionsManeCollected;
@@ -44,6 +45,12 @@ class PortfolioScreen extends StatefulWidget {
 class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   
+  // Add this line to declare the market manager variable
+  late CryptoMarketManager _marketManager;
+  
+  // Add this line to declare the timer variable
+  late Timer _uiUpdateTimer;
+  
   // Constants for exchange rates
   final double _lionsManeRate = 100.0;
   final double _redPillRate = 500.0;
@@ -60,21 +67,18 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   late double _currentBtcPrice;
   final double _minBtcPrice = 60000.0;
   final double _maxBtcPrice = 100000.0;
-  Timer? _priceUpdateTimer;
   List<double> _btcPriceHistory = [];
   
   // Ethereum price simulation variables
   late double _currentEthPrice;
   final double _minEthPrice = 3000.0;
   final double _maxEthPrice = 6000.0;
-  Timer? _ethPriceUpdateTimer;
   List<double> _ethPriceHistory = [];
   
   // Solana price simulation variables - more volatile
   late double _currentSolPrice;
   final double _minSolPrice = 50.0;
   final double _maxSolPrice = 300.0;
-  Timer? _solPriceUpdateTimer;
   List<double> _solPriceHistory = [];
   
   // Trading state
@@ -114,38 +118,67 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this); // Updated for 5 tabs
+    _tabController = TabController(length: 5, vsync: this);
     
     // Initialize local state with widget values
     _lionsManeCount = widget.lionsManeCollected;
     _redPillCount = widget.redPillCollected;
     _bitcoinCount = widget.bitcoinCollected;
     _ethereumCount = widget.ethereumCollected;
-    _solanaCount = widget.solanaCollected; // Initialize Solana count
+    _solanaCount = widget.solanaCollected;
     _usdBalance = widget.usdBalance;
     
-    // Initialize Bitcoin price simulation
-    _currentBtcPrice = _minBtcPrice + (_maxBtcPrice - _minBtcPrice) * 0.5;
-    _btcPriceHistory = List.generate(20, (_) => _currentBtcPrice);
+    // Get the singleton market manager instance
+    _marketManager = CryptoMarketManager();
     
-    // Initialize Ethereum price simulation
-    _currentEthPrice = _minEthPrice + (_maxEthPrice - _minEthPrice) * 0.5;
-    _ethPriceHistory = List.generate(20, (_) => _currentEthPrice);
+    // Initialize price histories from the market manager
+    _currentBtcPrice = _marketManager.bitcoin.currentPrice;
+    _currentEthPrice = _marketManager.ethereum.currentPrice;
+    _currentSolPrice = _marketManager.solana.currentPrice;
     
-    // Initialize Solana price simulation - start in the middle of range
-    _currentSolPrice = _minSolPrice + (_maxSolPrice - _minSolPrice) * 0.5;
-    _solPriceHistory = List.generate(20, (_) => _currentSolPrice);
+    // Create initial price histories if needed
+    _btcPriceHistory = _marketManager.bitcoin.priceHistory
+        .map((point) => point.price)
+        .toList();
+        
+    _ethPriceHistory = _marketManager.ethereum.priceHistory
+        .map((point) => point.price)
+        .toList();
+        
+    _solPriceHistory = _marketManager.solana.priceHistory
+        .map((point) => point.price)
+        .toList();
     
-    // Start price updates
-    _startPriceSimulations();
+    // Set up a timer to periodically refresh the UI with latest prices
+    _uiUpdateTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _currentBtcPrice = _marketManager.bitcoin.currentPrice;
+          _btcPriceHistory = _marketManager.bitcoin.priceHistory
+              .map((point) => point.price)
+              .toList();
+              
+          _currentEthPrice = _marketManager.ethereum.currentPrice;
+          _ethPriceHistory = _marketManager.ethereum.priceHistory
+              .map((point) => point.price)
+              .toList();
+              
+          _currentSolPrice = _marketManager.solana.currentPrice;
+          _solPriceHistory = _marketManager.solana.priceHistory
+              .map((point) => point.price)
+              .toList();
+        });
+      } else {
+        // If widget is no longer mounted, cancel the timer
+        timer.cancel();
+      }
+    });
   }
   
   @override
   void dispose() {
-    _priceUpdateTimer?.cancel();
-    _ethPriceUpdateTimer?.cancel();
-    _solPriceUpdateTimer?.cancel(); // Cancel Solana timer
     _tabController.dispose();
+    _uiUpdateTimer.cancel();
     _buyBtcAmountController.dispose();
     _sellBtcAmountController.dispose();
     _buyEthAmountController.dispose();
@@ -153,121 +186,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
     _buySolAmountController.dispose();
     _sellSolAmountController.dispose();
     super.dispose();
-  }
-  
-  // Simulate both Bitcoin, Ethereum and Solana price movements
-  void _startPriceSimulations() {
-    _startBitcoinPriceSimulation();
-    _startEthereumPriceSimulation();
-    _startSolanaPriceSimulation();
-  }
-  
-  // Simulate Bitcoin price movements
-  void _startBitcoinPriceSimulation() {
-    _priceUpdateTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      setState(() {
-        // Random walk algorithm with tendency to mean revert
-        final midPrice = (_minBtcPrice + _maxBtcPrice) / 2;
-        final volatility = (_maxBtcPrice - _minBtcPrice) * 0.02; // 2% of range
-        
-        // Mean reversion factor: stronger pull toward mean when far from it
-        final distanceFromMid = (_currentBtcPrice - midPrice).abs() / (_maxBtcPrice - _minBtcPrice);
-        final meanReversionFactor = 0.2 + distanceFromMid * 0.8; // 0.2-1.0 range
-        
-        // Calculate price change with mean reversion
-        double priceChange;
-        if (_currentBtcPrice > midPrice) {
-          // Above midpoint, bias toward decreasing
-          priceChange = volatility * ((Random().nextDouble() * 2 - 1.2) - meanReversionFactor);
-        } else {
-          // Below midpoint, bias toward increasing
-          priceChange = volatility * ((Random().nextDouble() * 2 - 0.8) + meanReversionFactor);
-        }
-        
-        // Apply change and ensure within bounds
-        _currentBtcPrice += priceChange;
-        _currentBtcPrice = _currentBtcPrice.clamp(_minBtcPrice, _maxBtcPrice);
-        
-        // Add to history and trim if needed
-        _btcPriceHistory.add(_currentBtcPrice);
-        if (_btcPriceHistory.length > _maxPriceHistoryPoints) {
-          _btcPriceHistory.removeAt(0);
-        }
-      });
-    });
-  }
-  
-  // Simulate Ethereum price movements
-  void _startEthereumPriceSimulation() {
-    _ethPriceUpdateTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      setState(() {
-        // Similar to Bitcoin but with different parameters for unique behavior
-        final midPrice = (_minEthPrice + _maxEthPrice) / 2;
-        final volatility = (_maxEthPrice - _minEthPrice) * 0.025; // 2.5% of range
-        
-        // Mean reversion factor with different characteristics
-        final distanceFromMid = (_currentEthPrice - midPrice).abs() / (_maxEthPrice - _minEthPrice);
-        final meanReversionFactor = 0.15 + distanceFromMid * 0.7; // 0.15-0.85 range
-        
-        // Calculate price change with mean reversion
-        double priceChange;
-        if (_currentEthPrice > midPrice) {
-          priceChange = volatility * ((Random().nextDouble() * 2 - 1.1) - meanReversionFactor);
-        } else {
-          priceChange = volatility * ((Random().nextDouble() * 2 - 0.9) + meanReversionFactor);
-        }
-        
-        // Apply change and ensure within bounds
-        _currentEthPrice += priceChange;
-        _currentEthPrice = _currentEthPrice.clamp(_minEthPrice, _maxEthPrice);
-        
-        // Add to history and trim if needed
-        _ethPriceHistory.add(_currentEthPrice);
-        if (_ethPriceHistory.length > _maxPriceHistoryPoints) {
-          _ethPriceHistory.removeAt(0);
-        }
-      });
-    });
-  }
-  
-  // Simulate Solana price movements with high volatility
-  void _startSolanaPriceSimulation() {
-    _solPriceUpdateTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() {
-        // More volatile algorithm for Solana - uses faster updates and larger movements
-        final midPrice = (_minSolPrice + _maxSolPrice) / 2;
-        // 6% of range - higher volatility than BTC (2%) and ETH (2.5%)
-        final volatility = (_maxSolPrice - _minSolPrice) * 0.06;
-        
-        // Less mean reversion for wilder swings
-        final distanceFromMid = (_currentSolPrice - midPrice).abs() / (_maxSolPrice - _minSolPrice);
-        final meanReversionFactor = 0.1 + distanceFromMid * 0.5; // Lower mean reversion
-        
-        // Calculate price change with more randomness
-        double priceChange;
-        if (_currentSolPrice > midPrice) {
-          // More extreme random component for high volatility
-          priceChange = volatility * ((Random().nextDouble() * 2.5 - 1.3) - meanReversionFactor);
-        } else {
-          priceChange = volatility * ((Random().nextDouble() * 2.5 - 1.2) + meanReversionFactor);
-        }
-        
-        // Add occasional price spikes
-        if (Random().nextDouble() < 0.05) { // 5% chance of spike
-          priceChange *= 3; // Triple the movement
-        }
-        
-        // Apply change and ensure within bounds
-        _currentSolPrice += priceChange;
-        _currentSolPrice = _currentSolPrice.clamp(_minSolPrice, _maxSolPrice);
-        
-        // Add to history and trim if needed
-        _solPriceHistory.add(_currentSolPrice);
-        if (_solPriceHistory.length > _maxPriceHistoryPoints) {
-          _solPriceHistory.removeAt(0);
-        }
-      });
-    });
   }
   
   // Calculate total USD value of portfolio
@@ -715,13 +633,18 @@ class _PortfolioScreenState extends State<PortfolioScreen> with SingleTickerProv
       );
     }
     
+    // Find actual min/max from the actual data
+    double actualMinPrice = priceHistory.reduce((a, b) => a < b ? a : b);
+    double actualMaxPrice = priceHistory.reduce((a, b) => a > b ? a : b);
+    
+    // Use actual price range instead of fixed values
     return LayoutBuilder(
       builder: (context, constraints) {
         return CustomPaint(
           painter: _BitcoinPriceChartPainter(
             priceHistory: priceHistory,
-            minPrice: minPrice,
-            maxPrice: maxPrice,
+            minPrice: actualMinPrice,
+            maxPrice: actualMaxPrice,
             lineColor: lineColor,
           ),
           size: Size(constraints.maxWidth, constraints.maxHeight),
@@ -1750,17 +1673,22 @@ class _BitcoinPriceChartPainter extends CustomPainter {
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
       ..style = PaintingStyle.fill;
     
+    // Calculate the actual min/max prices from the history
+    final actualMinPrice = priceHistory.reduce((a, b) => a < b ? a : b);
+    final actualMaxPrice = priceHistory.reduce((a, b) => a > b ? a : b);
+    
+    // Add 10% padding to the price range
+    final range = (actualMaxPrice - actualMinPrice) * 1.1;
+    final paddedMin = actualMinPrice - range * 0.05;
+    final paddedMax = actualMaxPrice + range * 0.05;
+    
     final path = Path();
     final fillPath = Path();
-    
-    // Calculate price range with 10% padding
-    final range = (maxPrice - minPrice) * 1.1;
-    final paddedMin = minPrice - range * 0.05;
     
     for (int i = 0; i < priceHistory.length; i++) {
       final x = size.width * i / (priceHistory.length - 1);
       // Invert Y coordinate because canvas origin is top-left
-      final y = size.height - ((priceHistory[i] - paddedMin) / range * size.height);
+      final y = size.height - ((priceHistory[i] - paddedMin) / (paddedMax - paddedMin) * size.height);
       
       if (i == 0) {
         path.moveTo(x, y);
@@ -1781,7 +1709,7 @@ class _BitcoinPriceChartPainter extends CustomPainter {
     canvas.drawPath(path, paint);
     
     // Draw price markers and grid lines
-    _drawPriceMarkers(canvas, size, paddedMin, range);
+    _drawPriceMarkers(canvas, size, paddedMin, paddedMax - paddedMin);
   }
   
   void _drawPriceMarkers(Canvas canvas, Size size, double paddedMin, double range) {
@@ -1812,7 +1740,7 @@ class _BitcoinPriceChartPainter extends CustomPainter {
       
       // Draw price text
       final textSpan = TextSpan(
-        text: '\$${price.round()}',
+        text: '\$${price.toStringAsFixed(2)}',
         style: textStyle,
       );
       final textPainter = TextPainter(

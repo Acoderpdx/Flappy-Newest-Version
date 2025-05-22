@@ -10,6 +10,7 @@ import 'dart:io'; // <-- Add this import
 import 'portfolio_screen.dart';
 import 'property_screen.dart';
 import 'garage_screen.dart'; // Add import for the garage screen
+import 'crypto_market_manager.dart'; // Add this import at the top of main.dart
 
 void main() {
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -317,6 +318,10 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Initialize the crypto market manager to run continuously in the background
+    CryptoMarketManager().initialize();
+    
     _loadSkinPrefs();
     // Only run the Timer if not in test mode
     if (!Platform.environment.containsKey('FLUTTER_TEST')) {
@@ -788,6 +793,9 @@ class _GameScreenState extends State<GameScreen> {
   }
   @override
   void dispose() {
+    // Clean up the market manager when the app closes
+    CryptoMarketManager().dispose();
+    
     gameLoopTimer?.cancel();
     super.dispose();
   }
@@ -868,18 +876,20 @@ class _GameScreenState extends State<GameScreen> {
               lionsManeCollected: lionsManeCollected,
               redPillCollected: redPillCollected,
               bitcoinCollected: bitcoinCollected,
-              ethereumCollected: ethereumCollected,
-              solanaCollected: solanaCollected, // Add Solana
+              ethereumCollected: ethereumCollected,  // FIXED: Use the int value
+              solanaCollected: solanaCollected, 
               lionsManePnlHistory: lionsManePnlHistory,
               redPillPnlHistory: redPillPnlHistory,
               bitcoinPnlHistory: bitcoinPnlHistory,
               ethereumPnlHistory: ethereumPnlHistory,
-              solanaPnlHistory: solanaPnlHistory, // Add Solana history
+              solanaPnlHistory: solanaPnlHistory,
               totalWealthHistory: totalWealthHistory,
               usdBalance: usdBalance,
               onTrade: _handleTrade,
               onClose: () {
-                Navigator.pop(context);
+                setState(() {
+                  _portfolioSwitchValue = false;
+                });
               },
             ),
           ));
@@ -1530,7 +1540,7 @@ class _GameScreenState extends State<GameScreen> {
     return false; // No collision
   }
 
-  // Add this method to fix the error - properly implement collision detection for collectibles
+  // Add the missing checkCollectibleCollision method
   void checkCollectibleCollision() {
     final screenSize = MediaQuery.of(context).size;
     final birdWidth = 70.0 * 0.7;
