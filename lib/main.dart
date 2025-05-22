@@ -802,10 +802,37 @@ class _GameScreenState extends State<GameScreen> {
 
         if (redWhiteBlackFilter) {
           // Red pill mode code...
-        } else {
-          // IMPORTANT: Add print statement to debug the counter
-          print("Spawn collectible with counter: $collectibleCycleCounter");
+          if (i < redPills.length) {
+            redPills[i] = RedPill(
+              xPosition: glueSticks[i].xPosition + glueSticks[i].width / 2 - 17,
+              yAlign: yAlign,
+              collected: false,
+            );
+          } else {
+            redPills.add(RedPill(
+              xPosition: glueSticks[i].xPosition + glueSticks[i].width / 2 - 17,
+              yAlign: yAlign,
+              collected: false,
+            ));
+          }
           
+          // Make sure other collectibles remain hidden in red mode
+          if (i < lionsManes.length) {
+            lionsManes[i] = LionsMane(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            lionsManes.add(LionsMane(xPosition: -1000, yAlign: 0, collected: true));
+          }
+          if (i < solanas.length) {
+            solanas[i] = Solana(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            solanas.add(Solana(xPosition: -1000, yAlign: 0, collected: true));
+          }
+          if (i < browneCoins.length) {
+            browneCoins[i] = BrowneCoin(xPosition: -1000, yAlign: 0, collected: true);
+          } else {
+            browneCoins.add(BrowneCoin(xPosition: -1000, yAlign: 0, collected: true));
+          }
+        } else {
           // Normal mode collectible spawning
           if (shouldSpawnLionsMane(collectibleCycleCounter)) {
             // Lions Mane spawning code...
