@@ -626,9 +626,9 @@ class _GameScreenState extends State<GameScreen> {
     }
 
     // --- RED MODE: Make gameplay 30% slower by increasing timer interval ---
-    int timerMs = 16;
+    int timerMs = 13; // Changed from 16ms to 13ms for ~25% faster gameplay (16 * 0.8 = 12.8)
     if (redWhiteBlackFilter) {
-      timerMs = (16 * 1.3).round(); // ~21ms per tick
+      timerMs = (13 * 1.3).round(); // ~17ms per tick (adjusted for new base speed)
     }
 
     gameLoopTimer = Timer.periodic(Duration(milliseconds: timerMs), (timer) {
