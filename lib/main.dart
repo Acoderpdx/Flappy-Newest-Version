@@ -17,6 +17,9 @@ import 'garage_screen.dart';
 // Import platform_imports.dart which safely handles dart:io imports
 import 'platform_imports.dart';
 
+// Import game_manual_screen.dart
+import 'game_manual_screen.dart';
+
 // Error handling for web platform
 class WebSafeErrorHandler {
   static void initialize() {
@@ -379,6 +382,9 @@ class _GameScreenState extends State<GameScreen> {
   bool _garageScreenSwitchValue = false;
   String _currentCarId = "";  // Track current car
   
+  // Add this new field
+  bool _showGameManual = false;
+
   @override
   void initState() {
     super.initState();
@@ -1473,7 +1479,8 @@ class _GameScreenState extends State<GameScreen> {
                   });
                 },
               ),
-            if (gameOver && !_showMiniGame && !_showPongMiniGame && !_showBallBlastMiniGame && !_portfolioSwitchValue && !_propertyScreenSwitchValue && !_garageScreenSwitchValue)
+            if (gameOver && !_showMiniGame && !_showPongMiniGame && !_showBallBlastMiniGame && 
+                !_portfolioSwitchValue && !_propertyScreenSwitchValue && !_garageScreenSwitchValue && !_showGameManual)
               Positioned.fill(
                 child: EndScreenOverlay(
                   score: score,
@@ -1546,7 +1553,21 @@ class _GameScreenState extends State<GameScreen> {
                       _garageScreenSwitchValue = val;  // Simply set the value directly
                     });
                   },
+                  // Add new manual field
+                  onGameManualChanged: (val) {
+                    setState(() {
+                      _showGameManual = val;  // Properly set the state variable
+                    });
+                  },
                 ),
+              ),
+            if (_showGameManual)
+              GameManualScreen(
+                onClose: () {
+                  setState(() {
+                    _showGameManual = false;
+                  });
+                },
               ),
           ],
         ),
@@ -1913,15 +1934,14 @@ class EndScreenOverlay extends StatefulWidget {
   final ValueChanged<bool> onMiniGameSwitchChanged;
   final bool ballBlastMiniGameSwitchValue;
   final ValueChanged<bool> onBallBlastMiniGameSwitchChanged;
-  // --- Add portfolio switch value and callback ---
   final bool portfolioSwitchValue;
   final ValueChanged<bool> onPortfolioSwitchChanged;
-  // --- Add property switch value and callback ---
   final bool propertySwitchValue;
   final ValueChanged<bool> onPropertySwitchChanged;
-  // Add garage screen properties
   final bool garageScreenSwitchValue;
   final ValueChanged<bool> onGarageSwitchChanged;
+  // Add new manual field
+  final ValueChanged<bool> onGameManualChanged;
 
   const EndScreenOverlay({
     Key? key,
@@ -1943,6 +1963,7 @@ class EndScreenOverlay extends StatefulWidget {
     required this.onPropertySwitchChanged,
     required this.garageScreenSwitchValue,
     required this.onGarageSwitchChanged,
+    required this.onGameManualChanged, // Add this parameter
   }) : super(key: key);
 
   @override
@@ -2050,7 +2071,7 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
         ),
         // Matrix Shop Button (left side, bitcoin image)
         Positioned(
-          left:  15,
+          left:   15,
           top: 0,
           bottom: 0,
           child: Center(
@@ -2257,6 +2278,39 @@ class _EndScreenOverlayState extends State<EndScreenOverlay> {
                     size: 38,
                   ),
                 ],
+              ),
+            ),
+          ),
+        ),
+        // --- Help/Manual Button (moved to center at same height as garage button) ---
+        Positioned(
+          top: 90,  // Same vertical position as the garage button (was 15)
+          left: 0,
+          right: 0,
+          child: Center(
+            child: GestureDetector(
+              onTap: () => widget.onGameManualChanged(true),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.3),
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '?',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

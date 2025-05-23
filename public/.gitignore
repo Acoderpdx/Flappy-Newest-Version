@@ -1,0 +1,50 @@
+# Flutter/Dart specific
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+build/
+ios/Flutter/.last_build_id
+
+# Android specific
+**/android/**/gradle-wrapper.jar
+.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+
+# iOS specific
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/Flutter.podspec
+**/ios/**/*.mode1v3
+**/ios/**/*.mode2v3
+**/ios/**/*.moved-aside
+**/ios/**/*.pbxuser
+**/ios/**/*.perspectivev3
+**/ios/**/*sync/
+**/ios/.sconsign.dblite
+**/ios/Pods/
+**/ios/profile
+**/ios/xcuserdata
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/Flutter/Debug.xcconfig
+**/ios/Flutter/Release.xcconfig
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/flutter_export_environment.sh
+
+# Files with personal information
+**/ios/build/ios/XCBuildData/PIFCache/**
+**/ios/Runner.xcodeproj/xcuserdata/
+**/ios/Pods/Pods.xcodeproj/xcuserdata/
+**/ios/Runner/CodeSigning.xcconfig
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr

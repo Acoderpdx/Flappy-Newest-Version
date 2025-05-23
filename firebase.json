@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "flappy-vibe-game",
+    "site": "flappy-poet-game",
     "public": "build/web",
     "ignore": [
       "firebase.json",
@@ -11,17 +11,6 @@
       {
         "source": "**",
         "destination": "/index.html"
-      }
-    ],
-    "headers": [
-      {
-        "source": "**/*.{js,html,css,png,jpg,jpeg,gif,svg}",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "max-age=3600"
-          }
-        ]
       }
     ]
   }

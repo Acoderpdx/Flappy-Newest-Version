@@ -15,18 +15,18 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <!-- Update the viewport meta tag for better mobile support -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="description" content="A custom Flappy Bird game with cryptocurrency elements">
-
-  <!-- iOS meta tags & icons -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Flappy Crypto">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
+  
+  <!-- Update favicon references -->
   <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  
+  <!-- Add preload for your logo -->
+  <link rel="preload" as="image" href="favicon.png">
 
-  <title>Flappy Crypto</title>
+  <title>Flappy Bird Clone</title>
   <link rel="manifest" href="manifest.json">
   
   <!-- IMPORTANT: Load Firebase scripts BEFORE Flutter initialization -->
@@ -71,7 +71,7 @@
       padding: 0;
       display: flex;
       justify-content: center;
-      align-items: flex-start; /* Changed from center to align to top */
+      align-items: flex-start;
       min-height: 100vh;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
       overflow: hidden;
@@ -79,25 +79,25 @@
     
     /* Container for positioning the iPhone with padding */
     .phone-container {
-      padding-top: 15px; /* Add some spacing from the top of the viewport */
+      padding-top: 15px;
       display: flex;
       justify-content: center;
       width: 100%;
       height: 100vh;
-      overflow-y: auto; /* Allow scrolling if phone is too tall */
-      -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
     
     /* iPhone 16+ frame styling - increased dimensions */
     .iphone-frame {
       position: relative;
-      width: 430px;  /* iPhone 16+ width */
-      height: 932px; /* iPhone 16+ height */
+      width: 430px;
+      height: 932px;
       background-color: #1a1a1a;
-      border-radius: 55px; /* Slightly larger radius for the bigger phone */
+      border-radius: 55px;
       overflow: hidden;
       box-shadow: 0 0 30px rgba(0,0,0,0.5);
-      border: 14px solid #2a2a2a; /* Slightly thicker border */
+      border: 14px solid #2a2a2a;
       transition: all 0.3s ease;
     }
     
@@ -122,10 +122,10 @@
       z-index: 5;
     }
     
-    /* Responsive design */
+    /* Responsive design for smaller desktop screens */
     @media (max-height: 950px) {
       .phone-container {
-        padding-top: 5px; /* Less padding on smaller screens */
+        padding-top: 5px;
       }
       
       .iphone-frame {
@@ -140,7 +140,7 @@
         transform-origin: top center;
       }
     }
-
+    
     /* Dynamic Island styling for newer iPhones */
     .dynamic-island {
       position: absolute;
@@ -154,6 +154,128 @@
       border-bottom-right-radius: 18px;
       z-index: 10;
     }
+    
+    /* Mobile-specific styling - Updated for 25% bigger frame */
+    @media (max-width: 767px) {
+      body, html {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: #121212;
+        overflow: hidden;
+      }
+
+      .phone-container {
+        display: flex;
+        justify-content: center;
+        align-items: center; /* Center vertically */
+        height: 100dvh;
+        width: 100vw;
+        padding: 0;
+        margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+
+      .iphone-frame {
+        position: relative;
+        aspect-ratio: 430 / 932;
+        /* Make frame 25% bigger than the previous version */
+        width: 295px; /* 25% bigger than 236px */
+        height: auto; /* Let height adjust based on aspect ratio */
+        max-width: 90vw; /* Slightly increased max-width */
+        background-color: #1a1a1a;
+        border-radius: 38px; /* Increased from 30px */
+        box-shadow: 0 0 25px rgba(0,0,0,0.5);
+        border: 10px solid #2a2a2a; /* Increased from 8px */
+        box-sizing: border-box;
+        overflow: hidden;
+        margin: 0 auto;
+      }
+
+      /* Fixed positioning for Flutter container */
+      #flutter-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+      }
+      
+      /* Scale dynamic island for bigger frame */
+      .dynamic-island {
+        width: 83px; /* 25% bigger than 66px */
+        height: 24px; /* 25% bigger than 19px */
+        border-bottom-left-radius: 13px; /* Increased from 10px */
+        border-bottom-right-radius: 13px; /* Increased from 10px */
+      }
+    }
+    
+    /* Adjust for very small screens */
+    @media (max-width: 375px) {
+      .iphone-frame {
+        width: 250px; /* Adjusted for smaller screens */
+      }
+    }
+
+    /* Extremely small screens */
+    @media (max-width: 320px) {
+      .iphone-frame {
+        width: 220px; /* Even smaller */
+        border: 8px solid #2a2a2a; /* Reduce border for tiny screens */
+      }
+    }
+
+    /* Remove these special handling media queries since we're using fixed sizing now */
+    @media (max-width: 390px) {
+      .iphone-frame {
+        width: 215px; /* Even smaller for tiny screens */
+      }
+    }
+    
+    /* Remove transformations for small screens */
+    @media (max-width: 375px) {
+      .iphone-frame {
+        width: 200px; /* Smallest size for very small screens */
+      }
+    }
+
+    /* Remove transformations for extremely tall/narrow screens */
+    @media (max-height: 700px) and (max-width: 767px) {
+      .iphone-frame {
+        transform: none !important;
+      }
+    }
+    
+    /* Rotate screen message for better mobile usability */
+    .rotate-message {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.9);
+      color: white;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      flex-direction: column;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    @media (max-width: 767px) and (orientation: landscape) {
+      .rotate-message {
+        display: flex;
+      }
+    }
   </style>
 </head>
 <body>
@@ -166,20 +288,67 @@
     </div>
   </div>
 
+  <!-- Rotate device message -->
+  <div class="rotate-message">
+    <h2>Please rotate your device</h2>
+    <p>This game is best experienced in portrait mode</p>
+    <div style="font-size: 48px; margin-top: 20px;">📱↺</div>
+  </div>
+
   <script>
+    // Function to detect mobile devices
+    function isMobileDevice() {
+      return (typeof window.orientation !== "undefined") || 
+             (navigator.userAgent.indexOf('IEMobile') !== -1) ||
+             (window.innerWidth <= 767);
+    }
+
     window.addEventListener('load', function(ev) {
+      // Add a meta viewport tag before Flutter loads to force fixed dimensions
+      const metaViewport = document.querySelector('meta[name="viewport"]');
+      if (metaViewport) {
+        metaViewport.setAttribute('content', 'width=430, height=932, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+      }
+      
       // Download main.dart.js
       _flutter.loader.loadEntrypoint({
         serviceWorker: {
           serviceWorkerVersion: serviceWorkerVersion,
         },
         onEntrypointLoaded: function(engineInitializer) {
+          // Initialize with fixed dimensions to match desktop
           engineInitializer.initializeEngine({
             renderer: 'html',
             hostElement: document.querySelector('#flutter-container'),
-            canvasKitBaseUrl: "/canvaskit/"
+            canvasKitBaseUrl: "/canvaskit/",
+            // Critical settings to force consistent rendering
+            ...window.innerWidth <= 767 ? {
+              assetBase: "/",
+              // Fixed dimensions for Mobile
+              initialDimensions: {
+                width: 430, 
+                height: 932
+              }
+            } : {} // Desktop uses default dimensions
           }).then(function(appRunner) {
             appRunner.runApp();
+            
+            // After app is running, ensure canvas fits properly
+            setTimeout(function() {
+              const flutterCanvas = document.querySelector('#flutter-container canvas');
+              if (flutterCanvas && window.innerWidth <= 767) {
+                flutterCanvas.style.width = '100%';
+                flutterCanvas.style.height = '100%';
+                flutterCanvas.style.position = 'absolute';
+                flutterCanvas.style.left = '0';
+                flutterCanvas.style.top = '0';
+                flutterCanvas.style.right = '0';
+                flutterCanvas.style.bottom = '0';
+                
+                // Force Flutter to update
+                window.dispatchEvent(new Event('resize'));
+              }
+            }, 1000);
           });
         }
       });

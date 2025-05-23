@@ -1,12 +1,22 @@
 {
   "projects": {
-    "default": "flappy-vibe-game"
+    "default": "your-project-id"
   },
   "targets": {
-    "flappy-vibe-game": {
+    "your-project-id": {
       "hosting": {
-        "web": ["flappy-vibe-game"]
+        "flappy-poet-game": [
+          "flappy-poet-game"
+        ]
       }
     }
+  },
+  "bundleId": "com.example.flappyvibegame",
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }

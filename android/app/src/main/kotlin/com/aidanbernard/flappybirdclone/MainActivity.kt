@@ -1,4 +1,4 @@
-package com.aidanbernard.flappybirdclone
+package com.example.flappybirdclone
 
 import io.flutter.embedding.android.FlutterActivity
 

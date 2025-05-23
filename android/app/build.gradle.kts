@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.aidanbernard.flappybirdclone"
+    namespace = "com.example.flappybirdclone"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // Update the applicationId to match the iOS bundle identifier
-        applicationId = "com.aidanbernard.flappybirdclone"
+        applicationId = "com.example.flappybirdclone"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

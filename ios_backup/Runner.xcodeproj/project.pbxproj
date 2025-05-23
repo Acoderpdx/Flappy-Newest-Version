@@ -446,7 +446,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = V2T5R63NKA;
+				DEVELOPMENT_TEAM = [YOUR_TEAM_ID];
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -474,14 +474,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;ON_NAME = AppIcon;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = V2T5R63NKA;LUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = [YOUR_TEAM_ID];LUTTER_BUILD_NUMBER)";
 				ENABLE_BITCODE = NO;2T5R63NKA;
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (o.plist;
 					"$(inherited)",H_PATHS = (
 					"@executable_path/Frameworks",
 				);@executable_path/Frameworks",
-				PRODUCT_BUNDLE_IDENTIFIER = com.aidanbernard.flappybirdclone;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.flappybirdclone;
 				PRODUCT_NAME = "$(TARGET_NAME)";aidanbernard.flappybirdclone;
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;HEADER = "Runner/Runner-Bridging-Header.h";
@@ -499,7 +499,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;= YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.aidanbernard.flappybirdclone;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.flappybirdclone;
 				PRODUCT_NAME = "$(TARGET_NAME)";aidanbernard.flappybirdclone;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";= DEBUG;
@@ -518,7 +518,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;= YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.aidanbernard.flappybirdclone;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.flappybirdclone;
 				PRODUCT_NAME = "$(TARGET_NAME)";aidanbernard.flappybirdclone;
 				SWIFT_VERSION = 5.0;RGET_NAME)";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
@@ -535,7 +535,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;= YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.aidanbernard.flappybirdclone;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.flappybirdclone;
 				PRODUCT_NAME = "$(TARGET_NAME)";aidanbernard.flappybirdclone;
 				SWIFT_VERSION = 5.0;RGET_NAME)";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
@@ -575,7 +575,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;k=iphoneos*]" = "Apple Development";
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = V2T5R63NKA;rf;
+				DEVELOPMENT_TEAM = [YOUR_TEAM_ID];rf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;D = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -634,7 +634,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;k=iphoneos*]" = "Apple Development";
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = V2T5R63NKA;arf-with-dsym";
+				DEVELOPMENT_TEAM = [YOUR_TEAM_ID];arf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;NKA;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -691,7 +691,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";2T5R63NKA;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;o.plist;
-				DEVELOPMENT_TEAM = V2T5R63NKA;H_PATHS = (
+				DEVELOPMENT_TEAM = [YOUR_TEAM_ID];H_PATHS = (
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;@executable_path/Frameworks",
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -816,4 +816,4 @@
 
 
 
-}	rootObject = 97C146E61CF9000F007C117D /* Project object */;	};/* End XCConfigurationList section */		};			defaultConfigurationName = Release;			defaultConfigurationIsVisible = 0;			);				249021D4217E4FDB00AE95B9 /* Profile */,				97C147071CF9000F007C117D /* Release */,				97C147061CF9000F007C117D /* Debug */,			buildConfigurations = (			isa = XCConfigurationList;		97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */ = {		};			defaultConfigurationName = Release;			defaultConfigurationIsVisible = 0;			);				249021D3217E4FDB00AE95B9 /* Profile */,				97C147041CF9000F007C117D /* Release */,				97C147031CF9000F007C117D /* Debug */,			buildConfigurations = (			isa = XCConfigurationList;		97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */ = {		};			defaultConfigurationName = Release;			defaultConfigurationIsVisible = 0;			);				331C808A294A63A400263BE5 /* Profile */,				331C8089294A63A400263BE5 /* Release */,				331C8088294A63A400263BE5 /* Debug */,			buildConfigurations = (			isa = XCConfigurationList;		331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */ = {/* Begin XCConfigurationList section *//* End XCBuildConfiguration section */		};			name = Release;			};				VALIDATE_PRODUCT = YES;				TARGETED_DEVICE_FAMILY = "1,2";				SWIFT_OPTIMIZATION_LEVEL = "-O";				SWIFT_COMPILATION_MODE = wholemodule;				SUPPORTED_PLATFORMS = iphoneos;				SDKROOT = iphoneos;				MTL_ENABLE_DEBUG_INFO = NO;				IPHONEOS_DEPLOYMENT_TARGET = 12.0;				GCC_WARN_UNUSED_VARIABLE = YES;				GCC_WARN_UNUSED_FUNCTION = YES;				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;				GCC_WARN_UNDECLARED_SELECTOR = YES;				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;				GCC_NO_COMMON_BLOCKS = YES;				GCC_C_LANGUAGE_STANDARD = gnu99;				ENABLE_USER_SCRIPT_SANDBOXING = NO;				ENABLE_STRICT_OBJC_MSGSEND = YES;				ENABLE_NS_ASSERTIONS = NO;				CODE_SIGN_STYLE = Automatic;				CODE_SIGN_IDENTITY = "Apple Development";				DEVELOPMENT_TEAM = V2T5R63NKA;				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";				COPY_PHASE_STRIP = NO;				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;				CLANG_WARN_UNREACHABLE_CODE = YES;				CLANG_WARN_SUSPICIOUS_MOVE = YES;				CLANG_WARN_STRICT_PROTOTYPES = YES;				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+}	rootObject = 97C146E61CF9000F007C117D /* Project object */;	};/* End XCConfigurationList section */		};			defaultConfigurationName = Release;			defaultConfigurationIsVisible = 0;			);				249021D4217E4FDB00AE95B9 /* Profile */,				97C147071CF9000F007C117D /* Release */,				97C147061CF9000F007C117D /* Debug */,			buildConfigurations = (			isa = XCConfigurationList;		97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */ = {		};			defaultConfigurationName = Release;			defaultConfigurationIsVisible = 0;			);				249021D3217E4FDB00AE95B9 /* Profile */,				97C147041CF9000F007C117D /* Release */,				97C147031CF9000F007C117D /* Debug */,			buildConfigurations = (			isa = XCConfigurationList;		97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */ = {		};			defaultConfigurationName = Release;			defaultConfigurationIsVisible = 0;			);				331C808A294A63A400263BE5 /* Profile */,				331C8089294A63A400263BE5 /* Release */,				331C8088294A63A400263BE5 /* Debug */,			buildConfigurations = (			isa = XCConfigurationList;		331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */ = {/* Begin XCConfigurationList section *//* End XCBuildConfiguration section */		};			name = Release;			};				VALIDATE_PRODUCT = YES;				TARGETED_DEVICE_FAMILY = "1,2";				SWIFT_OPTIMIZATION_LEVEL = "-O";				SWIFT_COMPILATION_MODE = wholemodule;				SUPPORTED_PLATFORMS = iphoneos;				SDKROOT = iphoneos;				MTL_ENABLE_DEBUG_INFO = NO;				IPHONEOS_DEPLOYMENT_TARGET = 12.0;				GCC_WARN_UNUSED_VARIABLE = YES;				GCC_WARN_UNUSED_FUNCTION = YES;				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;				GCC_WARN_UNDECLARED_SELECTOR = YES;				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;				GCC_NO_COMMON_BLOCKS = YES;				GCC_C_LANGUAGE_STANDARD = gnu99;				ENABLE_USER_SCRIPT_SANDBOXING = NO;				ENABLE_STRICT_OBJC_MSGSEND = YES;				ENABLE_NS_ASSERTIONS = NO;				CODE_SIGN_STYLE = Automatic;				CODE_SIGN_IDENTITY = "Apple Development";				DEVELOPMENT_TEAM = [YOUR_TEAM_ID];				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";				COPY_PHASE_STRIP = NO;				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;				CLANG_WARN_UNREACHABLE_CODE = YES;				CLANG_WARN_SUSPICIOUS_MOVE = YES;				CLANG_WARN_STRICT_PROTOTYPES = YES;				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;

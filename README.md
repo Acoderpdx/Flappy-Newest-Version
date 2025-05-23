@@ -59,7 +59,7 @@ This project is a custom version of the classic Flappy Bird game built using Flu
 
 1. Open your terminal and navigate to your project directory:
    ```
-   cd "/Users/aidanbernard/Documents/Vibe coding/Vibe Coding/Flappy-Newest-Version-main"
+   cd "/path/to/project/Documents/Vibe coding/Vibe Coding/Flappy-Newest-Version-main"
    ```
 
 2. Stage all your changes:
@@ -86,3 +86,53 @@ This project is a custom version of the classic Flappy Bird game built using Flu
 
 ## License
 This project is open-source and available for modification and distribution. Enjoy creating your own version of Flappy Bird!
+
+## Security and Anonymity Review
+
+If deploying your app publicly, consider these privacy measures:
+
+### 1. Remove Personal Information in File Paths
+
+Review your code for filepath comments that reveal your full name. These don't appear in compiled web output but should be removed from shared code or public repositories.
+
+### 2. Check For Hardcoded Personal Information
+
+Review your code for:
+- Personal usernames or identifiers
+- Email addresses
+- Personal social media handles
+- Custom assets with identifying metadata
+
+### 3. Review Asset Metadata
+
+Image files can contain metadata (EXIF data) that might include:
+- Your name in copyright fields
+- Device information
+- Location data
+
+Run this command to check image metadata:
+```bash
+exiftool assets/images/*
+```
+
+### 4. Secure API Keys and Configuration
+
+Make sure any Firebase config or API keys are properly secured and don't contain personal identifiers.
+
+### 5. Check Browser Developer Tools
+
+After deployment:
+1. Visit your site in incognito mode
+2. Open browser developer tools (F12)
+3. Inspect the Network, Console, and Sources tabs for exposed personal information
+
+### 6. Disable Source Maps in Production
+
+To prevent exposing more of your original code, disable source maps for production:
+```bash
+flutter build web --release --no-source-maps
+```
+
+### 7. Final Verification
+
+The web-compiled version of your Flutter app shouldn't expose local file paths or other personal identifiers. After addressing these issues, your anonymity should be preserved for website visitors.

@@ -23,6 +23,7 @@ jobs:
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_FLAPPY_VIBE_GAME }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_YOUR_PROJECT }}'
           channelId: live
-          projectId: flappy-vibe-game
+          projectId: your-project-id
+          target: flappy-poet-game
